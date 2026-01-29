@@ -1,72 +1,34 @@
-import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ParametersSidebar } from "@/components/ParametersSidebar";
 import { MarketTab } from "@/components/MarketTab";
-import {
-  getDefaultMarketData,
-  getDefaultParams,
-  getNextQuarterlyExpiration,
-  calculatePremiumInfo,
-  type MarketData,
-  type MarketParams,
-} from "@/lib/futuresConverter";
+import { useMarketData } from "@/hooks/useMarketData";
+import { calculatePremiumInfo } from "@/lib/futuresConverter";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const [marketData, setMarketData] = useState<MarketData>(getDefaultMarketData);
-  const [params, setParams] = useState<MarketParams>(getDefaultParams);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Simulate market data refresh (in real app, this would fetch from an API)
-  const handleRefreshMarket = () => {
-    setIsRefreshing(true);
-    // Simulate a small random price movement
-    setTimeout(() => {
-      setMarketData((prev) => ({
-        ...prev,
-        qqq: prev.qqq + (Math.random() - 0.5) * 2,
-        nq: prev.nq + (Math.random() - 0.5) * 20,
-        ndx: prev.ndx + (Math.random() - 0.5) * 20,
-        spy: prev.spy + (Math.random() - 0.5) * 2,
-        es: prev.es + (Math.random() - 0.5) * 10,
-        spx: prev.spx + (Math.random() - 0.5) * 10,
-        lastUpdate: new Date(),
-      }));
-      setIsRefreshing(false);
-    }, 500);
-  };
-
-  const handleRefreshParams = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      const expiration = getNextQuarterlyExpiration();
-      setParams((prev) => ({
-        ...prev,
-        daysToExp: expiration.days,
-        nextExpiration: expiration.date,
-        lastParamUpdate: new Date(),
-      }));
-      setIsRefreshing(false);
-    }, 500);
-  };
-
-  // Update expiration days periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const expiration = getNextQuarterlyExpiration();
-      if (params.daysToExp !== expiration.days) {
-        setParams((prev) => ({
-          ...prev,
-          daysToExp: expiration.days,
-          nextExpiration: expiration.date,
-        }));
-      }
-    }, 60000); // Check every minute
-
-    return () => clearInterval(interval);
-  }, [params.daysToExp]);
+  const {
+    marketData,
+    params,
+    isLoading,
+    isRefreshing,
+    refreshMarket,
+    refreshParams,
+    updateParams,
+  } = useMarketData();
 
   const nqPremium = calculatePremiumInfo(marketData.ndx, marketData.nq, "NQ", params);
   const esPremium = calculatePremiumInfo(marketData.spx, marketData.es, "ES", params);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading live market data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-background">
@@ -125,9 +87,9 @@ const Index = () => {
           <aside className="lg:sticky lg:top-8 lg:self-start">
             <ParametersSidebar
               params={params}
-              onParamsChange={setParams}
-              onRefreshMarket={handleRefreshMarket}
-              onRefreshParams={handleRefreshParams}
+              onParamsChange={updateParams}
+              onRefreshMarket={refreshMarket}
+              onRefreshParams={refreshParams}
               isRefreshing={isRefreshing}
             />
           </aside>
