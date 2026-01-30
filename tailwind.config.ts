@@ -58,6 +58,9 @@ export default {
         cyan: "hsl(var(--cyan))",
         "cyan-glow": "hsl(var(--cyan-glow))",
         blue: "hsl(var(--blue))",
+        "sp-red": "hsl(var(--sp-red))",
+        "sp-red-glow": "hsl(var(--sp-red-glow))",
+        "sp-orange": "hsl(var(--sp-orange))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -71,9 +74,11 @@ export default {
       },
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',
+        'gradient-sp500': 'var(--gradient-sp500)',
         'gradient-background': 'var(--gradient-background)',
         'gradient-card': 'var(--gradient-card)',
         'gradient-premium': 'var(--gradient-premium)',
+        'gradient-premium-sp500': 'var(--gradient-premium-sp500)',
       },
       borderRadius: {
         lg: "var(--radius)",

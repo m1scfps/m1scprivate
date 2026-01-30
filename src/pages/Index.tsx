@@ -57,7 +57,7 @@ const Index = () => {
                 </TabsTrigger>
                 <TabsTrigger
                   value="sp500"
-                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
+                  className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white"
                 >
                   📊 S&P 500 (SPY/ES/SPX)
                 </TabsTrigger>
@@ -69,6 +69,7 @@ const Index = () => {
                   marketData={marketData}
                   params={params}
                   premium={nqPremium}
+                  variant="nasdaq"
                 />
               </TabsContent>
 
@@ -78,6 +79,7 @@ const Index = () => {
                   marketData={marketData}
                   params={params}
                   premium={esPremium}
+                  variant="sp500"
                 />
               </TabsContent>
             </Tabs>
