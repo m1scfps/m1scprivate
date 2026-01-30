@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,6 +17,8 @@ interface ParametersSidebarProps {
   onRefreshMarket: () => void;
   onRefreshParams: () => void;
   isRefreshing?: boolean;
+  autoRefresh?: boolean;
+  onAutoRefreshChange?: (value: boolean) => void;
 }
 
 export function ParametersSidebar({
@@ -24,6 +27,8 @@ export function ParametersSidebar({
   onRefreshMarket,
   onRefreshParams,
   isRefreshing = false,
+  autoRefresh = true,
+  onAutoRefreshChange,
 }: ParametersSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -42,26 +47,37 @@ export function ParametersSidebar({
         <span>Settings & Controls</span>
       </div>
 
-      <div className="flex gap-2">
+      {/* Auto-refresh toggle */}
+      <div className="flex items-center justify-between rounded-lg bg-secondary/30 p-3">
+        <div className="flex items-center gap-2">
+          <RefreshCw className={`h-4 w-4 text-primary ${autoRefresh ? 'animate-spin' : ''}`} />
+          <span className="text-sm font-medium">Auto-refresh (15s)</span>
+        </div>
+        <Switch
+          checked={autoRefresh}
+          onCheckedChange={onAutoRefreshChange}
+        />
+      </div>
+
+      {/* Refresh buttons */}
+      <div className="grid grid-cols-2 gap-2">
         <Button
           onClick={onRefreshMarket}
           variant="secondary"
           size="sm"
-          className="flex-1"
           disabled={isRefreshing}
         >
-          <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh Market
+          <RefreshCw className={`mr-1 h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Market
         </Button>
         <Button
           onClick={onRefreshParams}
           variant="secondary"
           size="sm"
-          className="flex-1"
           disabled={isRefreshing}
         >
-          <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh Params
+          <RefreshCw className={`mr-1 h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Params
         </Button>
       </div>
 
