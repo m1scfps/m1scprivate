@@ -4,11 +4,18 @@ interface PremiumCardProps {
   title: string;
   formula: string;
   premium: PremiumInfo;
+  variant?: "nasdaq" | "sp500";
 }
 
-export function PremiumCard({ title, formula, premium }: PremiumCardProps) {
+export function PremiumCard({ title, formula, premium, variant = "nasdaq" }: PremiumCardProps) {
+  const isSP500 = variant === "sp500";
+  
   return (
-    <div className="rounded-xl border border-primary/30 bg-gradient-premium p-6 backdrop-blur-sm">
+    <div className={`rounded-xl border p-6 backdrop-blur-sm ${
+      isSP500 
+        ? "border-sp-red/30 bg-gradient-premium-sp500" 
+        : "border-primary/30 bg-gradient-premium"
+    }`}>
       <h3 className="mb-4 text-lg font-semibold text-foreground">{title}</h3>
       <div className="space-y-2 text-sm">
         <p>

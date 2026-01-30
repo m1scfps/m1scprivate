@@ -47,12 +47,19 @@ All colors MUST be HSL.
     --cyan: 187 94% 43%;
     --cyan-glow: 187 94% 50%;
     --blue: 217 91% 60%;
+    
+    /* S&P 500 Red theme */
+    --sp-red: 0 72% 51%;
+    --sp-red-glow: 0 84% 60%;
+    --sp-orange: 25 95% 53%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(90deg, hsl(187 94% 43%) 0%, hsl(217 91% 60%) 100%);
+    --gradient-sp500: linear-gradient(90deg, hsl(0 72% 51%) 0%, hsl(25 95% 53%) 100%);
     --gradient-background: linear-gradient(135deg, hsl(222 47% 8%) 0%, hsl(222 47% 4%) 100%);
     --gradient-card: linear-gradient(135deg, hsl(222 47% 10% / 0.6) 0%, hsl(222 47% 6% / 0.6) 100%);
     --gradient-premium: linear-gradient(135deg, hsl(187 94% 43% / 0.1) 0%, hsl(217 91% 60% / 0.1) 100%);
+    --gradient-premium-sp500: linear-gradient(135deg, hsl(0 72% 51% / 0.1) 0%, hsl(25 95% 53% / 0.1) 100%);
 
     --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 96%;

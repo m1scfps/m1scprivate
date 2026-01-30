@@ -10,11 +10,13 @@ interface MarketTabProps {
   marketData: MarketData;
   params: MarketParams;
   premium: PremiumInfo;
+  variant?: "nasdaq" | "sp500";
 }
 
 export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
-  ({ type, marketData, params, premium }, ref) => {
+  ({ type, marketData, params, premium, variant = "nasdaq" }, ref) => {
     const isNasdaq = type === "nasdaq";
+    const isSP500 = variant === "sp500";
 
     const formatTime = (date: Date) => {
       return date.toLocaleTimeString("en-US", {
@@ -78,6 +80,7 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
             title={`🎯 ${isNasdaq ? "NQ" : "ES"} Futures Premium (Theoretical)`}
             formula={`${isNasdaq ? "NDX" : "SPX"} × e^((r-d)×t)`}
             premium={premium}
+            variant={variant}
           />
           <RatioCard ratios={ratios} />
         </div>
@@ -93,6 +96,7 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
             params={params}
             varianceTicker={varianceTicker}
             variancePoints={variancePoints}
+            variant={variant}
           />
         </div>
       </div>
