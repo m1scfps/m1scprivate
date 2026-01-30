@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ParametersSidebar } from "@/components/ParametersSidebar";
 import { MarketTab } from "@/components/MarketTab";
+import { CheatSheetTab } from "@/components/CheatSheetTab";
 import { useMarketData } from "@/hooks/useMarketData";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
 import { Loader2 } from "lucide-react";
@@ -48,18 +49,24 @@ const Index = () => {
           {/* Left column - Tabs */}
           <div>
             <Tabs defaultValue="nasdaq" className="w-full">
-              <TabsList className="mb-6 grid w-full grid-cols-2 bg-secondary/30">
+              <TabsList className="mb-6 grid w-full grid-cols-3 bg-secondary/30">
                 <TabsTrigger
                   value="nasdaq"
                   className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
                 >
-                  📈 NASDAQ (QQQ/NQ/NDX)
+                  📈 NASDAQ
                 </TabsTrigger>
                 <TabsTrigger
                   value="sp500"
                   className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white"
                 >
-                  📊 S&P 500 (SPY/ES/SPX)
+                  📊 S&P 500
+                </TabsTrigger>
+                <TabsTrigger
+                  value="cheatsheet"
+                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
+                >
+                  📋 Cheat Sheet
                 </TabsTrigger>
               </TabsList>
 
@@ -81,6 +88,10 @@ const Index = () => {
                   premium={esPremium}
                   variant="sp500"
                 />
+              </TabsContent>
+
+              <TabsContent value="cheatsheet">
+                <CheatSheetTab />
               </TabsContent>
             </Tabs>
           </div>
