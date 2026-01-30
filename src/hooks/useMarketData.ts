@@ -14,6 +14,8 @@ interface UseMarketDataReturn {
   params: MarketParams;
   isLoading: boolean;
   isRefreshing: boolean;
+  autoRefresh: boolean;
+  setAutoRefresh: (value: boolean) => void;
   refreshMarket: () => Promise<void>;
   refreshParams: () => Promise<void>;
   updateParams: (newParams: MarketParams) => void;
@@ -24,6 +26,7 @@ export function useMarketData(): UseMarketDataReturn {
   const [params, setParams] = useState<MarketParams>(getDefaultParams);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true); // Enabled by default
   const { toast } = useToast();
 
   const fetchAllData = useCallback(async () => {
@@ -139,6 +142,18 @@ export function useMarketData(): UseMarketDataReturn {
     fetchAllData().finally(() => setIsLoading(false));
   }, [fetchAllData]);
 
+  // Auto-refresh every 15 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing market data...');
+      fetchAllData();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchAllData]);
+
   // Update expiration days periodically
   useEffect(() => {
     const interval = setInterval(() => {
@@ -160,6 +175,8 @@ export function useMarketData(): UseMarketDataReturn {
     params,
     isLoading,
     isRefreshing,
+    autoRefresh,
+    setAutoRefresh,
     refreshMarket,
     refreshParams,
     updateParams,

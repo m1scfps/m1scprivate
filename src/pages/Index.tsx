@@ -12,6 +12,8 @@ const Index = () => {
     params,
     isLoading,
     isRefreshing,
+    autoRefresh,
+    setAutoRefresh,
     refreshMarket,
     refreshParams,
     updateParams,
@@ -104,6 +106,8 @@ const Index = () => {
               onRefreshMarket={refreshMarket}
               onRefreshParams={refreshParams}
               isRefreshing={isRefreshing}
+              autoRefresh={autoRefresh}
+              onAutoRefreshChange={setAutoRefresh}
             />
           </aside>
         </div>
