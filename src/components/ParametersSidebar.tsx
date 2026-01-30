@@ -50,7 +50,14 @@ export function ParametersSidebar({
       {/* Auto-refresh toggle */}
       <div className="flex items-center justify-between rounded-lg bg-secondary/30 p-3">
         <div className="flex items-center gap-2">
-          <RefreshCw className={`h-4 w-4 text-primary ${autoRefresh ? 'animate-spin' : ''}`} />
+          {autoRefresh ? (
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-success"></span>
+            </span>
+          ) : (
+            <span className="h-3 w-3 rounded-full bg-muted-foreground/30"></span>
+          )}
           <span className="text-sm font-medium">Auto-refresh (15s)</span>
         </div>
         <Switch

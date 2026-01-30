@@ -1,8 +1,11 @@
+import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ParametersSidebar } from "@/components/ParametersSidebar";
 import { MarketTab } from "@/components/MarketTab";
 import { CheatSheetTab } from "@/components/CheatSheetTab";
+import { AlertsTab } from "@/components/AlertsTab";
 import { useMarketData } from "@/hooks/useMarketData";
+import { usePriceAlerts } from "@/hooks/usePriceAlerts";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
 import { Loader2 } from "lucide-react";
 
@@ -19,8 +22,23 @@ const Index = () => {
     updateParams,
   } = useMarketData();
 
+  const {
+    alerts,
+    addAlert,
+    removeAlert,
+    clearTriggered,
+    checkAlerts,
+    notificationsEnabled,
+    requestNotificationPermission,
+  } = usePriceAlerts();
+
   const nqPremium = calculatePremiumInfo(marketData.ndx, marketData.nq, "NQ", params);
   const esPremium = calculatePremiumInfo(marketData.spx, marketData.es, "ES", params);
+
+  // Check alerts whenever market data updates
+  useEffect(() => {
+    checkAlerts(marketData);
+  }, [marketData, checkAlerts]);
 
   if (isLoading) {
     return (
@@ -51,7 +69,7 @@ const Index = () => {
           {/* Left column - Tabs */}
           <div>
             <Tabs defaultValue="nasdaq" className="w-full">
-              <TabsList className="mb-6 grid w-full grid-cols-3 bg-secondary/30">
+              <TabsList className="mb-6 grid w-full grid-cols-4 bg-secondary/30">
                 <TabsTrigger
                   value="nasdaq"
                   className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
@@ -63,6 +81,12 @@ const Index = () => {
                   className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white"
                 >
                   📊 S&P 500
+                </TabsTrigger>
+                <TabsTrigger
+                  value="alerts"
+                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
+                >
+                  🔔 Alerts {alerts.filter(a => !a.triggered).length > 0 && `(${alerts.filter(a => !a.triggered).length})`}
                 </TabsTrigger>
                 <TabsTrigger
                   value="cheatsheet"
@@ -89,6 +113,17 @@ const Index = () => {
                   params={params}
                   premium={esPremium}
                   variant="sp500"
+                />
+              </TabsContent>
+
+              <TabsContent value="alerts">
+                <AlertsTab
+                  alerts={alerts}
+                  onAddAlert={addAlert}
+                  onRemoveAlert={removeAlert}
+                  onClearTriggered={clearTriggered}
+                  notificationsEnabled={notificationsEnabled}
+                  onRequestNotifications={requestNotificationPermission}
                 />
               </TabsContent>
 
