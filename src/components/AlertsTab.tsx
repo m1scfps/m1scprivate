@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Bell, BellOff, Trash2, Plus, CheckCircle2 } from "lucide-react";
 import type { PriceAlert } from "@/hooks/usePriceAlerts";
+import type { MarketData } from "@/lib/futuresConverter";
 
 interface AlertsTabProps {
   alerts: PriceAlert[];
@@ -18,9 +19,10 @@ interface AlertsTabProps {
   onClearTriggered: () => void;
   notificationsEnabled: boolean;
   onRequestNotifications: () => void;
+  marketData: MarketData;
 }
 
-const TICKERS = ["QQQ", "NQ", "NDX", "SPY", "ES", "SPX"];
+const TICKERS = ["QQQ", "NQ", "NDX", "SPY", "ES", "SPX", "GLD", "GC"];
 
 export function AlertsTab({
   alerts,
@@ -29,6 +31,7 @@ export function AlertsTab({
   onClearTriggered,
   notificationsEnabled,
   onRequestNotifications,
+  marketData,
 }: AlertsTabProps) {
   const [ticker, setTicker] = useState("QQQ");
   const [condition, setCondition] = useState<"above" | "below">("above");
@@ -46,6 +49,37 @@ export function AlertsTab({
 
   return (
     <div className="space-y-6">
+      {/* Current Market Data */}
+      <div className="rounded-xl border border-border/50 bg-gradient-card p-6 backdrop-blur-sm">
+        <h3 className="mb-4 text-lg font-semibold text-foreground">📊 Current Market Prices</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "QQQ", value: marketData.qqq, prefix: "$" },
+            { label: "NQ", value: marketData.nq },
+            { label: "SPY", value: marketData.spy, prefix: "$" },
+            { label: "ES", value: marketData.es },
+            { label: "NDX", value: marketData.ndx },
+            { label: "SPX", value: marketData.spx },
+            { label: "GLD", value: marketData.gld, prefix: "$", isGold: true },
+            { label: "GC", value: marketData.gc, prefix: "$", isGold: true },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className={`rounded-lg p-3 text-center ${
+                item.isGold ? "bg-gold/10 border border-gold/30" : "bg-secondary/30"
+              }`}
+            >
+              <p className={`text-xs font-medium ${item.isGold ? "text-gold" : "text-muted-foreground"}`}>
+                {item.label}
+              </p>
+              <p className={`text-lg font-bold ${item.isGold ? "text-gold" : "text-foreground"}`}>
+                {item.prefix}{item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Header */}
       <div className="rounded-xl border border-border/50 bg-gradient-card p-6 backdrop-blur-sm">
         <div className="mb-4 flex items-center justify-between">

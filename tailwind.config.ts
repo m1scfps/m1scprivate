@@ -61,6 +61,9 @@ export default {
         "sp-red": "hsl(var(--sp-red))",
         "sp-red-glow": "hsl(var(--sp-red-glow))",
         "sp-orange": "hsl(var(--sp-orange))",
+        gold: "hsl(var(--gold))",
+        "gold-glow": "hsl(var(--gold-glow))",
+        "gold-dark": "hsl(var(--gold-dark))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -75,10 +78,12 @@ export default {
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-sp500': 'var(--gradient-sp500)',
+        'gradient-gold': 'var(--gradient-gold)',
         'gradient-background': 'var(--gradient-background)',
         'gradient-card': 'var(--gradient-card)',
         'gradient-premium': 'var(--gradient-premium)',
         'gradient-premium-sp500': 'var(--gradient-premium-sp500)',
+        'gradient-premium-gold': 'var(--gradient-premium-gold)',
       },
       borderRadius: {
         lg: "var(--radius)",

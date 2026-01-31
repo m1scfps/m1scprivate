@@ -7,6 +7,8 @@ export interface MarketData {
   spy: number;
   es: number;
   spx: number;
+  gld: number;
+  gc: number;
   lastUpdate: Date;
 }
 
@@ -112,6 +114,8 @@ export function convert(
     'NQ-QQQ': marketData.qqq / marketData.nq,
     'SPY-ES': marketData.es / marketData.spy,
     'ES-SPY': marketData.spy / marketData.es,
+    'GLD-GC': marketData.gc / marketData.gld,
+    'GC-GLD': marketData.gld / marketData.gc,
   };
 
   // Check direct conversion first
@@ -199,10 +203,11 @@ export function convert(
 export function calculatePremiumInfo(
   spot: number,
   futures: number,
-  tickerType: 'NQ' | 'ES',
+  tickerType: 'NQ' | 'ES' | 'GC',
   params: MarketParams
 ): PremiumInfo {
-  const divYield = tickerType === 'NQ' ? params.ndxDivYield : params.spxDivYield;
+  // Gold has no dividend yield (storage cost is typically included in futures)
+  const divYield = tickerType === 'NQ' ? params.ndxDivYield : tickerType === 'ES' ? params.spxDivYield : 0;
   const theoreticalFutures = calculateCarryPremium(
     spot,
     params.riskFreeRate,
@@ -212,7 +217,8 @@ export function calculatePremiumInfo(
 
   const premium = theoreticalFutures - spot;
   const premiumPct = (premium / spot) * 100;
-  const multiplier = tickerType === 'NQ' ? 20 : 50;
+  // GC contract is 100 oz, GLD is 1/10 oz equivalent
+  const multiplier = tickerType === 'NQ' ? 20 : tickerType === 'ES' ? 50 : 100;
   const premiumDollars = premium * multiplier;
 
   return {
@@ -233,6 +239,8 @@ export function getDefaultMarketData(): MarketData {
     spy: 595.0,
     es: 5961.9,
     spx: 5950.0,
+    gld: 305.0,
+    gc: 3050.0,
     lastUpdate: new Date(),
   };
 }
