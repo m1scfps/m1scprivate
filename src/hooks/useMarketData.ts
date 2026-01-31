@@ -48,6 +48,8 @@ export function useMarketData(): UseMarketDataReturn {
         setMarketData({
           ...data.marketData,
           lastUpdate: new Date(data.marketData.lastUpdate),
+          gld: data.marketData.gld || 305.0,
+          gc: data.marketData.gc || 3050.0,
         });
       }
 
@@ -82,6 +84,8 @@ export function useMarketData(): UseMarketDataReturn {
         setMarketData({
           ...data.marketData,
           lastUpdate: new Date(data.marketData.lastUpdate),
+          gld: data.marketData.gld || 305.0,
+          gc: data.marketData.gc || 3050.0,
         });
         toast({
           title: "Market Data Updated",

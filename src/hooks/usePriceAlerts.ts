@@ -28,6 +28,8 @@ const TICKER_MAP: Record<string, keyof MarketData> = {
   SPY: "spy",
   ES: "es",
   SPX: "spx",
+  GLD: "gld",
+  GC: "gc",
 };
 
 export function usePriceAlerts(): UsePriceAlertsReturn {

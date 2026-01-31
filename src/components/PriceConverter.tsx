@@ -20,7 +20,7 @@ interface PriceConverterProps {
   params: MarketParams;
   varianceTicker?: string;
   variancePoints?: number;
-  variant?: "nasdaq" | "sp500";
+  variant?: "nasdaq" | "sp500" | "gold";
 }
 
 export function PriceConverter({
@@ -34,6 +34,7 @@ export function PriceConverter({
   variant = "nasdaq",
 }: PriceConverterProps) {
   const isSP500 = variant === "sp500";
+  const isGold = variant === "gold";
   const [fromTicker, setFromTicker] = useState(defaultFrom);
   const [toTicker, setToTicker] = useState(tickers[tickers.length - 1]);
   const [inputValue, setInputValue] = useState(defaultValue.toString());
@@ -101,7 +102,9 @@ export function PriceConverter({
       <Button
         onClick={handleConvert}
         className={`w-full font-bold text-white transition-all hover:scale-[1.02] ${
-          isSP500
+          isGold
+            ? "bg-gradient-gold hover:opacity-90 hover:shadow-[0_4px_20px_hsl(var(--gold)/0.4)]"
+            : isSP500
             ? "bg-gradient-sp500 hover:opacity-90 hover:shadow-[0_4px_20px_hsl(var(--sp-red)/0.4)]"
             : "bg-gradient-primary hover:opacity-90 hover:shadow-[0_4px_20px_hsl(var(--primary)/0.4)]"
         }`}

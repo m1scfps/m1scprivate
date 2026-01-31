@@ -4,15 +4,18 @@ interface PremiumCardProps {
   title: string;
   formula: string;
   premium: PremiumInfo;
-  variant?: "nasdaq" | "sp500";
+  variant?: "nasdaq" | "sp500" | "gold";
 }
 
 export function PremiumCard({ title, formula, premium, variant = "nasdaq" }: PremiumCardProps) {
   const isSP500 = variant === "sp500";
+  const isGold = variant === "gold";
   
   return (
     <div className={`rounded-xl border p-6 backdrop-blur-sm ${
-      isSP500 
+      isGold
+        ? "border-gold/30 bg-gradient-premium-gold"
+        : isSP500 
         ? "border-sp-red/30 bg-gradient-premium-sp500" 
         : "border-primary/30 bg-gradient-premium"
     }`}>

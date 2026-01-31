@@ -12,6 +12,8 @@ interface MarketData {
   spy: number;
   es: number;
   spx: number;
+  gld: number;
+  gc: number;
   lastUpdate: string;
 }
 
@@ -193,16 +195,18 @@ serve(async (req) => {
       console.log('Fetching market prices...');
       
       // Fetch all prices in parallel
-      const [qqq, nq, ndx, spy, es, spx] = await Promise.all([
+      const [qqq, nq, ndx, spy, es, spx, gld, gc] = await Promise.all([
         fetchYahooQuote('QQQ'),
         fetchYahooQuote('NQ=F'),
         fetchYahooQuote('%5ENDX'),
         fetchYahooQuote('SPY'),
         fetchYahooQuote('ES=F'),
         fetchYahooQuote('%5EGSPC'),
+        fetchYahooQuote('GLD'),
+        fetchYahooQuote('GC=F'),
       ]);
 
-      console.log('Prices fetched:', { qqq, nq, ndx, spy, es, spx });
+      console.log('Prices fetched:', { qqq, nq, ndx, spy, es, spx, gld, gc });
 
       const marketData: MarketData = {
         qqq: qqq || 529.0,
@@ -211,6 +215,8 @@ serve(async (req) => {
         spy: spy || 595.0,
         es: es || 5961.0,
         spx: spx || 5950.0,
+        gld: gld || 305.0,
+        gc: gc || 3050.0,
         lastUpdate: new Date().toISOString(),
       };
 

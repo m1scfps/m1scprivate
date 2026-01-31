@@ -34,6 +34,7 @@ const Index = () => {
 
   const nqPremium = calculatePremiumInfo(marketData.ndx, marketData.nq, "NQ", params);
   const esPremium = calculatePremiumInfo(marketData.spx, marketData.es, "ES", params);
+  const gcPremium = calculatePremiumInfo(marketData.gc * 0.996, marketData.gc, "GC", params);
 
   // Check alerts whenever market data updates
   useEffect(() => {
@@ -69,7 +70,7 @@ const Index = () => {
           {/* Left column - Tabs */}
           <div>
             <Tabs defaultValue="nasdaq" className="w-full">
-              <TabsList className="mb-6 grid w-full grid-cols-4 bg-secondary/30">
+              <TabsList className="mb-6 grid w-full grid-cols-5 bg-secondary/30">
                 <TabsTrigger
                   value="nasdaq"
                   className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
@@ -81,6 +82,12 @@ const Index = () => {
                   className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white"
                 >
                   📊 S&P 500
+                </TabsTrigger>
+                <TabsTrigger
+                  value="gold"
+                  className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground"
+                >
+                  🥇 Gold
                 </TabsTrigger>
                 <TabsTrigger
                   value="alerts"
@@ -116,6 +123,16 @@ const Index = () => {
                 />
               </TabsContent>
 
+              <TabsContent value="gold">
+                <MarketTab
+                  type="gold"
+                  marketData={marketData}
+                  params={params}
+                  premium={gcPremium}
+                  variant="gold"
+                />
+              </TabsContent>
+
               <TabsContent value="alerts">
                 <AlertsTab
                   alerts={alerts}
@@ -124,6 +141,7 @@ const Index = () => {
                   onClearTriggered={clearTriggered}
                   notificationsEnabled={notificationsEnabled}
                   onRequestNotifications={requestNotificationPermission}
+                  marketData={marketData}
                 />
               </TabsContent>
 
