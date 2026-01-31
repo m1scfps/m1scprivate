@@ -114,6 +114,7 @@ export function convert(
     'NQ-QQQ': marketData.qqq / marketData.nq,
     'SPY-ES': marketData.es / marketData.spy,
     'ES-SPY': marketData.spy / marketData.es,
+    // GLD tracks ~1/10 oz of gold, so GLD × ~10.9 ≈ GC
     'GLD-GC': marketData.gc / marketData.gld,
     'GC-GLD': marketData.gld / marketData.gc,
   };
@@ -197,6 +198,92 @@ export function convert(
   }
 
   return value;
+}
+
+// Cross-index conversion (BETA) - converts between ES/NQ and SPX/NDX
+export function convertCrossIndex(
+  value: number,
+  fromTicker: string,
+  toTicker: string,
+  marketData: MarketData,
+  params: MarketParams
+): number | null {
+  if (fromTicker === toTicker) return value;
+
+  // Get the spot values for each index
+  const getSpotValue = (ticker: string): number | null => {
+    switch (ticker) {
+      case 'ES': {
+        const t = params.daysToExp / 365.0;
+        const r = params.riskFreeRate / 100.0;
+        const d = params.spxDivYield / 100.0;
+        return marketData.es / Math.exp((r - d) * t); // ES → SPX equivalent
+      }
+      case 'NQ': {
+        const t = params.daysToExp / 365.0;
+        const r = params.riskFreeRate / 100.0;
+        const d = params.ndxDivYield / 100.0;
+        return marketData.nq / Math.exp((r - d) * t); // NQ → NDX equivalent
+      }
+      case 'SPX': return marketData.spx;
+      case 'NDX': return marketData.ndx;
+      default: return null;
+    }
+  };
+
+  // Calculate NDX/SPX ratio from current market
+  const ndxSpxRatio = marketData.ndx / marketData.spx;
+
+  // Convert input to SPX equivalent first
+  let spxEquivalent: number;
+  switch (fromTicker) {
+    case 'ES': {
+      const t = params.daysToExp / 365.0;
+      const r = params.riskFreeRate / 100.0;
+      const d = params.spxDivYield / 100.0;
+      spxEquivalent = value / Math.exp((r - d) * t);
+      break;
+    }
+    case 'NQ': {
+      const t = params.daysToExp / 365.0;
+      const r = params.riskFreeRate / 100.0;
+      const d = params.ndxDivYield / 100.0;
+      const ndxEquivalent = value / Math.exp((r - d) * t);
+      spxEquivalent = ndxEquivalent / ndxSpxRatio;
+      break;
+    }
+    case 'SPX':
+      spxEquivalent = value;
+      break;
+    case 'NDX':
+      spxEquivalent = value / ndxSpxRatio;
+      break;
+    default:
+      return null;
+  }
+
+  // Convert SPX equivalent to target
+  switch (toTicker) {
+    case 'ES': {
+      const t = params.daysToExp / 365.0;
+      const r = params.riskFreeRate / 100.0;
+      const d = params.spxDivYield / 100.0;
+      return spxEquivalent * Math.exp((r - d) * t);
+    }
+    case 'NQ': {
+      const ndxEquivalent = spxEquivalent * ndxSpxRatio;
+      const t = params.daysToExp / 365.0;
+      const r = params.riskFreeRate / 100.0;
+      const d = params.ndxDivYield / 100.0;
+      return ndxEquivalent * Math.exp((r - d) * t);
+    }
+    case 'SPX':
+      return spxEquivalent;
+    case 'NDX':
+      return spxEquivalent * ndxSpxRatio;
+    default:
+      return null;
+  }
 }
 
 // Calculate premium information
