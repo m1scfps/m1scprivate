@@ -1,1 +1,7 @@
 project_id = "bfadmxosptljksrwrgei"
+
+[functions.market-data]
+verify_jwt = false
+
+[functions.nq-prediction]
+verify_jwt = false
