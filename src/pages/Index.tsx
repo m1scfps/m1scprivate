@@ -4,6 +4,7 @@ import { ParametersSidebar } from "@/components/ParametersSidebar";
 import { MarketTab } from "@/components/MarketTab";
 import { CheatSheetTab } from "@/components/CheatSheetTab";
 import { AlertsTab } from "@/components/AlertsTab";
+import { PredictionTab } from "@/components/PredictionTab";
 import { useMarketData } from "@/hooks/useMarketData";
 import { usePriceAlerts } from "@/hooks/usePriceAlerts";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
@@ -70,7 +71,7 @@ const Index = () => {
           {/* Left column - Tabs */}
           <div>
             <Tabs defaultValue="nasdaq" className="w-full">
-              <TabsList className="mb-6 grid w-full grid-cols-5 bg-secondary/30">
+              <TabsList className="mb-6 grid w-full grid-cols-6 bg-secondary/30">
                 <TabsTrigger
                   value="nasdaq"
                   className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
@@ -88,6 +89,12 @@ const Index = () => {
                   className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground"
                 >
                   🥇 Gold
+                </TabsTrigger>
+                <TabsTrigger
+                  value="prediction"
+                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
+                >
+                  🤖 Bot
                 </TabsTrigger>
                 <TabsTrigger
                   value="alerts"
@@ -131,6 +138,10 @@ const Index = () => {
                   premium={gcPremium}
                   variant="gold"
                 />
+              </TabsContent>
+
+              <TabsContent value="prediction">
+                <PredictionTab />
               </TabsContent>
 
               <TabsContent value="alerts">
