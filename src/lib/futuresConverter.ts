@@ -197,7 +197,7 @@ export function convert(
 }
 
 // Cross-index conversion (BETA) - converts between ES/NQ and SPX/NDX
-// Uses live market ratios for accurate cross-market conversions
+// Uses the underlying index ratio (NDX/SPX) as the basis for all cross-index conversions
 export function convertCrossIndex(
   value: number,
   fromTicker: string,
@@ -207,23 +207,37 @@ export function convertCrossIndex(
 ): number | null {
   if (fromTicker === toTicker) return value;
 
-  // Get current market prices for each ticker
-  const prices: Record<string, number> = {
-    'ES': marketData.es,
-    'NQ': marketData.nq,
-    'SPX': marketData.spx,
-    'NDX': marketData.ndx,
+  // The key insight: NDX/SPX ratio is the fundamental relationship
+  // All cross-index conversions should preserve this ratio
+  const ndxSpxRatio = marketData.ndx / marketData.spx;
+
+  // Map each ticker to its "index equivalent" for ratio calculation
+  // NQ tracks NDX, ES tracks SPX
+  const toNdxEquivalent = (ticker: string, val: number): number => {
+    switch (ticker) {
+      case 'NDX': return val;
+      case 'NQ': return val; // NQ ≈ NDX (small premium, but use directly for simplicity)
+      case 'SPX': return val * ndxSpxRatio;
+      case 'ES': return val * ndxSpxRatio; // ES ≈ SPX, scale to NDX
+      default: return val;
+    }
   };
 
-  const fromPrice = prices[fromTicker];
-  const toPrice = prices[toTicker];
+  const fromNdxEquivalent = (ticker: string, ndxVal: number): number => {
+    switch (ticker) {
+      case 'NDX': return ndxVal;
+      case 'NQ': return ndxVal;
+      case 'SPX': return ndxVal / ndxSpxRatio;
+      case 'ES': return ndxVal / ndxSpxRatio;
+      default: return ndxVal;
+    }
+  };
 
-  if (!fromPrice || !toPrice) return null;
+  // Convert: from -> NDX equivalent -> to
+  const ndxEquiv = toNdxEquivalent(fromTicker, value);
+  const result = fromNdxEquivalent(toTicker, ndxEquiv);
 
-  // Simple ratio-based conversion using live market data
-  // This calculates: if fromTicker is at X, what should toTicker be at?
-  // Answer: value * (toPrice / fromPrice)
-  return value * (toPrice / fromPrice);
+  return result;
 }
 
 // Calculate premium information
