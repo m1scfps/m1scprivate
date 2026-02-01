@@ -3,7 +3,6 @@ import { MetricCard } from "./MetricCard";
 import { PremiumCard } from "./PremiumCard";
 import { RatioCard } from "./RatioCard";
 import { PriceConverter } from "./PriceConverter";
-import { CrossIndexConverter } from "./CrossIndexConverter";
 import type { MarketData, MarketParams, PremiumInfo } from "@/lib/futuresConverter";
 
 interface MarketTabProps {
@@ -113,13 +112,6 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
           />
         </div>
 
-        {/* Cross-Index Converter (BETA) - only show on NASDAQ and S&P tabs */}
-        {!isGold && (
-          <div>
-            <h2 className="mb-4 text-lg font-semibold">🔬 Cross-Index Converter (BETA)</h2>
-            <CrossIndexConverter marketData={marketData} params={params} />
-          </div>
-        )}
       </div>
     );
   }
