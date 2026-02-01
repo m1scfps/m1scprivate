@@ -98,7 +98,7 @@ export function calculateCarryPremium(
   return spotPrice * carryMultiplier;
 }
 
-// Convert between different tickers
+// Convert between different tickers using live market data
 export function convert(
   value: number,
   fromTicker: string,
@@ -108,29 +108,73 @@ export function convert(
 ): number | null {
   if (fromTicker === toTicker) return value;
 
-  // Calculate market-based ratios
-  const ratios: Record<string, number> = {
-    'QQQ-NQ': marketData.nq / marketData.qqq,
-    'NQ-QQQ': marketData.qqq / marketData.nq,
-    'SPY-ES': marketData.es / marketData.spy,
-    'ES-SPY': marketData.spy / marketData.es,
-    // GLD tracks ~1/10 oz of gold, so GLD × ~10.9 ≈ GC
-    'GLD-GC': marketData.gc / marketData.gld,
-    'GC-GLD': marketData.gld / marketData.gc,
-  };
-
-  // Check direct conversion first
-  const conversionKey = `${fromTicker}-${toTicker}`;
-  if (ratios[conversionKey]) {
-    return value * ratios[conversionKey];
+  // Gold conversions - use simple live market ratio
+  // GLD tracks ~1/10 oz gold, so GLD * ratio ≈ GC
+  if (fromTicker === 'GLD' && toTicker === 'GC') {
+    const ratio = marketData.gc / marketData.gld;
+    return value * ratio;
+  }
+  if (fromTicker === 'GC' && toTicker === 'GLD') {
+    const ratio = marketData.gld / marketData.gc;
+    return value * ratio;
   }
 
-  // NDX to NQ: Apply cost of carry formula
+  // ETF to ETF conversions (QQQ, SPY)
+  if (fromTicker === 'QQQ' && toTicker === 'SPY') {
+    return value * (marketData.spy / marketData.qqq);
+  }
+  if (fromTicker === 'SPY' && toTicker === 'QQQ') {
+    return value * (marketData.qqq / marketData.spy);
+  }
+
+  // Index to Index (NDX, SPX)
+  if (fromTicker === 'NDX' && toTicker === 'SPX') {
+    return value * (marketData.spx / marketData.ndx);
+  }
+  if (fromTicker === 'SPX' && toTicker === 'NDX') {
+    return value * (marketData.ndx / marketData.spx);
+  }
+
+  // Futures to Futures (NQ, ES)
+  if (fromTicker === 'NQ' && toTicker === 'ES') {
+    return value * (marketData.es / marketData.nq);
+  }
+  if (fromTicker === 'ES' && toTicker === 'NQ') {
+    return value * (marketData.nq / marketData.es);
+  }
+
+  // ETF to Index (simple ratio - no cost of carry needed)
+  if (fromTicker === 'QQQ' && toTicker === 'NDX') {
+    return value * (marketData.ndx / marketData.qqq);
+  }
+  if (fromTicker === 'NDX' && toTicker === 'QQQ') {
+    return value * (marketData.qqq / marketData.ndx);
+  }
+  if (fromTicker === 'SPY' && toTicker === 'SPX') {
+    return value * (marketData.spx / marketData.spy);
+  }
+  if (fromTicker === 'SPX' && toTicker === 'SPY') {
+    return value * (marketData.spy / marketData.spx);
+  }
+
+  // ETF to Futures (use live market ratio directly)
+  if (fromTicker === 'QQQ' && toTicker === 'NQ') {
+    return value * (marketData.nq / marketData.qqq);
+  }
+  if (fromTicker === 'NQ' && toTicker === 'QQQ') {
+    return value * (marketData.qqq / marketData.nq);
+  }
+  if (fromTicker === 'SPY' && toTicker === 'ES') {
+    return value * (marketData.es / marketData.spy);
+  }
+  if (fromTicker === 'ES' && toTicker === 'SPY') {
+    return value * (marketData.spy / marketData.es);
+  }
+
+  // Index to Futures - apply cost of carry formula
   if (fromTicker === 'NDX' && toTicker === 'NQ') {
     return calculateCarryPremium(value, params.riskFreeRate, params.ndxDivYield, params.daysToExp);
   }
-
-  // NQ to NDX: Reverse cost of carry
   if (fromTicker === 'NQ' && toTicker === 'NDX') {
     const t = params.daysToExp / 365.0;
     const r = params.riskFreeRate / 100.0;
@@ -138,13 +182,9 @@ export function convert(
     const carryMultiplier = Math.exp((r - d) * t);
     return value / carryMultiplier;
   }
-
-  // SPX to ES: Apply cost of carry formula
   if (fromTicker === 'SPX' && toTicker === 'ES') {
     return calculateCarryPremium(value, params.riskFreeRate, params.spxDivYield, params.daysToExp);
   }
-
-  // ES to SPX: Reverse cost of carry
   if (fromTicker === 'ES' && toTicker === 'SPX') {
     const t = params.daysToExp / 365.0;
     const r = params.riskFreeRate / 100.0;
@@ -153,137 +193,37 @@ export function convert(
     return value / carryMultiplier;
   }
 
-  // QQQ to NDX or NDX to QQQ (use simple ratio)
-  if (fromTicker === 'QQQ' && toTicker === 'NDX') {
-    return value * (marketData.ndx / marketData.qqq);
-  }
-  if (fromTicker === 'NDX' && toTicker === 'QQQ') {
-    return value * (marketData.qqq / marketData.ndx);
-  }
-
-  // SPY to SPX or SPX to SPY (use simple ratio)
-  if (fromTicker === 'SPY' && toTicker === 'SPX') {
-    return value * (marketData.spx / marketData.spy);
-  }
-  if (fromTicker === 'SPX' && toTicker === 'SPY') {
-    return value * (marketData.spy / marketData.spx);
-  }
-
-  // Chain conversions for QQQ <-> NQ through NDX
-  if (fromTicker === 'QQQ' && toTicker === 'NQ') {
-    const ndxValue = value * (marketData.ndx / marketData.qqq);
-    return calculateCarryPremium(ndxValue, params.riskFreeRate, params.ndxDivYield, params.daysToExp);
-  }
-  if (fromTicker === 'NQ' && toTicker === 'QQQ') {
-    const t = params.daysToExp / 365.0;
-    const r = params.riskFreeRate / 100.0;
-    const d = params.ndxDivYield / 100.0;
-    const carryMultiplier = Math.exp((r - d) * t);
-    const ndxValue = value / carryMultiplier;
-    return ndxValue * (marketData.qqq / marketData.ndx);
-  }
-
-  // Chain conversions for SPY <-> ES through SPX
-  if (fromTicker === 'SPY' && toTicker === 'ES') {
-    const spxValue = value * (marketData.spx / marketData.spy);
-    return calculateCarryPremium(spxValue, params.riskFreeRate, params.spxDivYield, params.daysToExp);
-  }
-  if (fromTicker === 'ES' && toTicker === 'SPY') {
-    const t = params.daysToExp / 365.0;
-    const r = params.riskFreeRate / 100.0;
-    const d = params.spxDivYield / 100.0;
-    const carryMultiplier = Math.exp((r - d) * t);
-    const spxValue = value / carryMultiplier;
-    return spxValue * (marketData.spy / marketData.spx);
-  }
-
   return value;
 }
 
 // Cross-index conversion (BETA) - converts between ES/NQ and SPX/NDX
+// Uses live market ratios for accurate cross-market conversions
 export function convertCrossIndex(
   value: number,
   fromTicker: string,
   toTicker: string,
   marketData: MarketData,
-  params: MarketParams
+  _params: MarketParams
 ): number | null {
   if (fromTicker === toTicker) return value;
 
-  // Get the spot values for each index
-  const getSpotValue = (ticker: string): number | null => {
-    switch (ticker) {
-      case 'ES': {
-        const t = params.daysToExp / 365.0;
-        const r = params.riskFreeRate / 100.0;
-        const d = params.spxDivYield / 100.0;
-        return marketData.es / Math.exp((r - d) * t); // ES → SPX equivalent
-      }
-      case 'NQ': {
-        const t = params.daysToExp / 365.0;
-        const r = params.riskFreeRate / 100.0;
-        const d = params.ndxDivYield / 100.0;
-        return marketData.nq / Math.exp((r - d) * t); // NQ → NDX equivalent
-      }
-      case 'SPX': return marketData.spx;
-      case 'NDX': return marketData.ndx;
-      default: return null;
-    }
+  // Get current market prices for each ticker
+  const prices: Record<string, number> = {
+    'ES': marketData.es,
+    'NQ': marketData.nq,
+    'SPX': marketData.spx,
+    'NDX': marketData.ndx,
   };
 
-  // Calculate NDX/SPX ratio from current market
-  const ndxSpxRatio = marketData.ndx / marketData.spx;
+  const fromPrice = prices[fromTicker];
+  const toPrice = prices[toTicker];
 
-  // Convert input to SPX equivalent first
-  let spxEquivalent: number;
-  switch (fromTicker) {
-    case 'ES': {
-      const t = params.daysToExp / 365.0;
-      const r = params.riskFreeRate / 100.0;
-      const d = params.spxDivYield / 100.0;
-      spxEquivalent = value / Math.exp((r - d) * t);
-      break;
-    }
-    case 'NQ': {
-      const t = params.daysToExp / 365.0;
-      const r = params.riskFreeRate / 100.0;
-      const d = params.ndxDivYield / 100.0;
-      const ndxEquivalent = value / Math.exp((r - d) * t);
-      spxEquivalent = ndxEquivalent / ndxSpxRatio;
-      break;
-    }
-    case 'SPX':
-      spxEquivalent = value;
-      break;
-    case 'NDX':
-      spxEquivalent = value / ndxSpxRatio;
-      break;
-    default:
-      return null;
-  }
+  if (!fromPrice || !toPrice) return null;
 
-  // Convert SPX equivalent to target
-  switch (toTicker) {
-    case 'ES': {
-      const t = params.daysToExp / 365.0;
-      const r = params.riskFreeRate / 100.0;
-      const d = params.spxDivYield / 100.0;
-      return spxEquivalent * Math.exp((r - d) * t);
-    }
-    case 'NQ': {
-      const ndxEquivalent = spxEquivalent * ndxSpxRatio;
-      const t = params.daysToExp / 365.0;
-      const r = params.riskFreeRate / 100.0;
-      const d = params.ndxDivYield / 100.0;
-      return ndxEquivalent * Math.exp((r - d) * t);
-    }
-    case 'SPX':
-      return spxEquivalent;
-    case 'NDX':
-      return spxEquivalent * ndxSpxRatio;
-    default:
-      return null;
-  }
+  // Simple ratio-based conversion using live market data
+  // This calculates: if fromTicker is at X, what should toTicker be at?
+  // Answer: value * (toPrice / fromPrice)
+  return value * (toPrice / fromPrice);
 }
 
 // Calculate premium information

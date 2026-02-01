@@ -33,7 +33,15 @@ export function CrossIndexConverter({ marketData, params }: CrossIndexConverterP
     const converted = convertCrossIndex(value, fromTicker, toTicker, marketData, params);
     if (converted !== null) {
       setResult(converted);
-      setRatio(converted / value);
+      // Calculate the live market ratio used
+      const prices: Record<string, number> = {
+        'ES': marketData.es,
+        'NQ': marketData.nq,
+        'SPX': marketData.spx,
+        'NDX': marketData.ndx,
+      };
+      const liveRatio = prices[toTicker] / prices[fromTicker];
+      setRatio(liveRatio);
     }
   };
 
