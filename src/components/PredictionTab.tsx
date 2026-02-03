@@ -15,26 +15,47 @@ import {
   Activity,
   Zap,
   Clock,
-  Target
+  Target,
+  ArrowUpDown,
+  Layers
 } from "lucide-react";
 
-interface PremarketData {
-  currentPrice: number;
-  prevClose: number;
-  premarketChange: number;
-  premarketVolume: number;
+interface VolumeProfile {
+  poc: number;
+  valueAreaHigh: number;
+  valueAreaLow: number;
+  biggestBuyersBelow: number;
+  biggestSellersAbove: number;
 }
 
-interface OptionsFlow {
+interface OrderFlowData {
+  cvd: number;
+  recentDelta: number;
+  deltaDirection: string;
+  orderFlowImbalance: number;
+  aggressorSide: string;
+  vwap: number;
+  vwapPosition: string;
+  vwapUpperBand: number;
+  vwapLowerBand: number;
+  dailyProfile: VolumeProfile;
+  weeklyProfile: VolumeProfile;
+  monthlyProfile: VolumeProfile;
+  blockFlow: number;
+  blockDirection: string;
+}
+
+interface OptionsFlowData {
   positioning: string;
   bias: number;
   vixVsAverage: number;
-}
-
-interface GammaExposure {
-  regime: string;
-  impact: string;
-  score: number;
+  vixLevel: number;
+  gammaRegime: string;
+  gammaImpact: string;
+  gammaSupport: number;
+  gammaResistance: number;
+  keyResistance: number;
+  keySupport: number;
 }
 
 interface SectorRotation {
@@ -53,37 +74,35 @@ interface EconomicEvent {
   daysUntil: number;
 }
 
-interface PredictionModel {
-  model: string;
-  prediction: string;
-  confidence: number;
-}
-
-interface Signal {
-  shortTerm: string[];
-  mediumTerm: string[];
-  longTerm: string[];
-}
-
 interface PredictionData {
   timestamp: string;
-  premarket: PremarketData | null;
-  optionsFlow: OptionsFlow;
-  gamma: GammaExposure;
+  currentPrice: number;
+  premarket: {
+    currentPrice: number;
+    prevClose: number;
+    premarketChange: number;
+  } | null;
+  optionsFlow: OptionsFlowData;
+  orderFlow: OrderFlowData;
+  marketBreadth: {
+    vixRegime: string;
+    marketSentiment: string;
+    internalsScore: number;
+    nqSpyCorrelation: number;
+  };
   sectorRotation: SectorRotation | null;
   economicEvents: EconomicEvent[];
-  vixLevel: number;
-  momentum5d: number;
   newsPrediction: {
     newsType: string;
-    models: PredictionModel[];
-    consensusConfidence: number;
+    outcome: string;
+    score: number;
+    signals: string[];
   };
   openPrediction: {
     direction: string;
     confidence: string;
     score: number;
-    signals: Signal;
+    signals: string[];
     strategy: string;
   };
 }
@@ -131,11 +150,22 @@ export function PredictionTab() {
     return <Badge variant={variants[confidence] || 'secondary'}>{confidence} Confidence</Badge>;
   };
 
+  const formatNumber = (num: number) => {
+    return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+
+  const formatLargeNumber = (num: number) => {
+    if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toFixed(0);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">🤖 NQ Prediction Bot</h2>
+          <h2 className="text-lg font-semibold">NQ Institutional Prediction Bot</h2>
           <Skeleton className="h-10 w-24" />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -158,7 +188,7 @@ export function PredictionTab() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">🤖 NQ Prediction Bot</h2>
+          <h2 className="text-lg font-semibold">NQ Institutional Prediction Bot</h2>
           <Button onClick={fetchPrediction} variant="outline" size="sm">
             <RefreshCw className="mr-2 h-4 w-4" />
             Retry
@@ -184,7 +214,7 @@ export function PredictionTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">🤖 NQ Prediction Bot</h2>
+          <h2 className="text-lg font-semibold">NQ Institutional Prediction Bot</h2>
           <p className="text-xs text-muted-foreground">
             Last updated: {new Date(data.timestamp).toLocaleTimeString()}
           </p>
@@ -217,139 +247,345 @@ export function PredictionTab() {
             <p className="text-base font-semibold">{data.openPrediction.strategy}</p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Composite Score:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Score:</span>
             <Badge variant={data.openPrediction.score > 0 ? 'default' : data.openPrediction.score < 0 ? 'destructive' : 'secondary'}>
               {data.openPrediction.score > 0 ? '+' : ''}{data.openPrediction.score.toFixed(1)}
             </Badge>
+            {data.openPrediction.signals.map((signal, i) => (
+              <Badge key={i} variant="outline" className="text-xs">
+                {signal}
+              </Badge>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Signals Grid */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Pre-market Status */}
+      {data.premarket && (
         <Card className="border-border/50 bg-card/50">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Zap className="h-4 w-4" />
-              Short-Term (Intraday)
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Activity className="h-4 w-4" />
+              Pre-Market Status
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-1 text-sm">
-              {data.openPrediction.signals.shortTerm.map((signal, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  {signal}
-                </li>
-              ))}
-            </ul>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Current</p>
+                <p className="text-lg font-bold font-mono">{formatNumber(data.premarket.currentPrice)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Prev Close</p>
+                <p className="text-lg font-mono">{formatNumber(data.premarket.prevClose)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Change</p>
+                <p className={`text-lg font-bold font-mono ${data.premarket.premarketChange >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {data.premarket.premarketChange >= 0 ? '+' : ''}{data.premarket.premarketChange.toFixed(2)}%
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
+      )}
 
-        <Card className="border-border/50 bg-card/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <BarChart3 className="h-4 w-4" />
-              Medium-Term (Swing)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1 text-sm">
-              {data.openPrediction.signals.mediumTerm.map((signal, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-accent">•</span>
-                  {signal}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <TrendingUp className="h-4 w-4" />
-              Long-Term (Position)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1 text-sm">
-              {data.openPrediction.signals.longTerm.map((signal, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-success">•</span>
-                  {signal}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Pre-market & Market Data */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Pre-market Status */}
-        {data.premarket && (
+      {/* OPTIONS FLOW SECTION */}
+      <div className="space-y-4">
+        <h3 className="text-md font-semibold flex items-center gap-2">
+          <Zap className="h-5 w-5 text-primary" />
+          Options Flow
+        </h3>
+        
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* VIX & Positioning */}
           <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                🌅 Pre-Market Status
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                VIX & Positioning
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Current Price</span>
-                <span className="font-mono font-bold">{data.premarket.currentPrice.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Prev Close</span>
-                <span className="font-mono">{data.premarket.prevClose.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Change</span>
-                <span className={`font-mono font-bold ${data.premarket.premarketChange >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {data.premarket.premarketChange >= 0 ? '+' : ''}{data.premarket.premarketChange.toFixed(2)}%
-                </span>
+            <CardContent className="space-y-3">
+              <p className="font-medium">{data.optionsFlow.positioning}</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">VIX Level</span>
+                  <p className="font-mono font-bold">{data.optionsFlow.vixLevel.toFixed(1)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">VIX vs Avg</span>
+                  <p className={`font-mono font-bold ${data.optionsFlow.vixVsAverage >= 0 ? 'text-destructive' : 'text-success'}`}>
+                    {data.optionsFlow.vixVsAverage >= 0 ? '+' : ''}{data.optionsFlow.vixVsAverage.toFixed(1)}%
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Options Positioning */}
-        <Card className="border-border/50 bg-card/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              📊 Options Positioning
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="font-medium">{data.optionsFlow.positioning}</p>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">VIX Level</span>
-              <span className="font-mono">{data.vixLevel.toFixed(1)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">VIX vs Average</span>
-              <span className={`font-mono ${data.optionsFlow.vixVsAverage >= 0 ? 'text-destructive' : 'text-success'}`}>
-                {data.optionsFlow.vixVsAverage >= 0 ? '+' : ''}{data.optionsFlow.vixVsAverage.toFixed(1)}%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Gamma Exposure */}
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Gamma Exposure
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="font-medium">{data.optionsFlow.gammaRegime.replace('_', ' ')}</p>
+              <p className="text-sm text-muted-foreground">{data.optionsFlow.gammaImpact}</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Support</span>
+                  <p className="font-mono text-success">{formatNumber(data.optionsFlow.gammaSupport)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Resistance</span>
+                  <p className="font-mono text-destructive">{formatNumber(data.optionsFlow.gammaResistance)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Key Strike ↓</span>
+                  <p className="font-mono">{formatNumber(data.optionsFlow.keySupport)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Key Strike ↑</span>
+                  <p className="font-mono">{formatNumber(data.optionsFlow.keyResistance)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Gamma & Sector Rotation */}
+      {/* ORDER FLOW SECTION */}
+      <div className="space-y-4">
+        <h3 className="text-md font-semibold flex items-center gap-2">
+          <ArrowUpDown className="h-5 w-5 text-accent" />
+          Order Flow
+        </h3>
+        
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* CVD & Delta */}
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Cumulative Volume Delta (CVD)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">CVD</span>
+                <span className={`font-mono font-bold ${data.orderFlow.cvd >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {data.orderFlow.cvd >= 0 ? '+' : ''}{formatLargeNumber(data.orderFlow.cvd)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Recent Delta (5-bar)</span>
+                <span className={`font-mono font-bold ${data.orderFlow.recentDelta >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {data.orderFlow.recentDelta >= 0 ? '+' : ''}{formatLargeNumber(data.orderFlow.recentDelta)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Delta Direction</span>
+                <Badge variant={data.orderFlow.deltaDirection === 'BUYING' ? 'default' : 
+                               data.orderFlow.deltaDirection === 'SELLING' ? 'destructive' : 'secondary'}>
+                  {data.orderFlow.deltaDirection}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Order Flow Imbalance & Blocks */}
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Imbalance & Institutional Flow
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">OFI</span>
+                <span className={`font-mono font-bold ${data.orderFlow.orderFlowImbalance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {data.orderFlow.orderFlowImbalance >= 0 ? '+' : ''}{data.orderFlow.orderFlowImbalance.toFixed(3)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Aggressor</span>
+                <Badge variant={data.orderFlow.aggressorSide === 'BUYERS' ? 'default' : 
+                               data.orderFlow.aggressorSide === 'SELLERS' ? 'destructive' : 'secondary'}>
+                  {data.orderFlow.aggressorSide}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Block Flow</span>
+                <span className="font-mono">{data.orderFlow.blockFlow}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Smart Money</span>
+                <Badge variant={data.orderFlow.blockDirection.includes('BUYING') ? 'default' : 
+                               data.orderFlow.blockDirection.includes('SELLING') ? 'destructive' : 'secondary'}>
+                  {data.orderFlow.blockDirection}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* VWAP */}
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                VWAP Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">VWAP</span>
+                <span className="font-mono font-bold">{formatNumber(data.orderFlow.vwap)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Position</span>
+                <Badge variant={data.orderFlow.vwapPosition === 'ABOVE' ? 'default' : 'destructive'}>
+                  {data.orderFlow.vwapPosition}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Upper Band</span>
+                  <p className="font-mono text-destructive">{formatNumber(data.orderFlow.vwapUpperBand)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Lower Band</span>
+                  <p className="font-mono text-success">{formatNumber(data.orderFlow.vwapLowerBand)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Volume Profiles */}
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Layers className="h-4 w-4" />
+                Volume Profiles
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Daily Profile */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Daily</p>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">VAH</span>
+                    <p className="font-mono text-destructive">{formatNumber(data.orderFlow.dailyProfile.valueAreaHigh)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">POC</span>
+                    <p className="font-mono font-bold">{formatNumber(data.orderFlow.dailyProfile.poc)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">VAL</span>
+                    <p className="font-mono text-success">{formatNumber(data.orderFlow.dailyProfile.valueAreaLow)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Weekly Profile */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Weekly</p>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">VAH</span>
+                    <p className="font-mono text-destructive">{formatNumber(data.orderFlow.weeklyProfile.valueAreaHigh)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">POC</span>
+                    <p className="font-mono font-bold">{formatNumber(data.orderFlow.weeklyProfile.poc)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">VAL</span>
+                    <p className="font-mono text-success">{formatNumber(data.orderFlow.weeklyProfile.valueAreaLow)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly Profile */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Monthly</p>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">VAH</span>
+                    <p className="font-mono text-destructive">{formatNumber(data.orderFlow.monthlyProfile.valueAreaHigh)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">POC</span>
+                    <p className="font-mono font-bold">{formatNumber(data.orderFlow.monthlyProfile.poc)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">VAL</span>
+                    <p className="font-mono text-success">{formatNumber(data.orderFlow.monthlyProfile.valueAreaLow)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Imbalance Zones */}
+              <div className="pt-2 border-t border-border/50">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Imbalance Zones (Monthly)</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Sellers Above VAH</span>
+                    <p className="font-mono text-destructive">
+                      {data.orderFlow.monthlyProfile.biggestSellersAbove > 0 
+                        ? formatNumber(data.orderFlow.monthlyProfile.biggestSellersAbove) 
+                        : 'None'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Buyers Below VAL</span>
+                    <p className="font-mono text-success">
+                      {data.orderFlow.monthlyProfile.biggestBuyersBelow > 0 
+                        ? formatNumber(data.orderFlow.monthlyProfile.biggestBuyersBelow) 
+                        : 'None'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Market Breadth & Sector Rotation */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Gamma Exposure */}
+        {/* Market Breadth */}
         <Card className="border-border/50 bg-card/50">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              ⚡ Gamma Exposure
+              <BarChart3 className="h-4 w-4" />
+              Market Breadth
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="font-medium">{data.gamma.regime}</p>
-            <p className="text-sm text-muted-foreground">{data.gamma.impact}</p>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">VIX Regime</span>
+              <Badge variant="outline">{data.marketBreadth.vixRegime.replace('_', ' ')}</Badge>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Sentiment</span>
+              <Badge variant={data.marketBreadth.marketSentiment === 'RISK_ON' ? 'default' : 
+                             data.marketBreadth.marketSentiment === 'RISK_OFF' ? 'destructive' : 'secondary'}>
+                {data.marketBreadth.marketSentiment.replace('_', ' ')}
+              </Badge>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Internals Score</span>
+              <span className={`font-mono ${data.marketBreadth.internalsScore > 0 ? 'text-success' : 
+                              data.marketBreadth.internalsScore < 0 ? 'text-destructive' : ''}`}>
+                {data.marketBreadth.internalsScore > 0 ? '+' : ''}{data.marketBreadth.internalsScore}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">NQ/SPY Correl</span>
+              <span className="font-mono">{data.marketBreadth.nqSpyCorrelation.toFixed(2)}</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -358,7 +594,8 @@ export function PredictionTab() {
           <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
-                🔄 Sector Rotation
+                <TrendingUp className="h-4 w-4" />
+                Sector Rotation
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -390,22 +627,22 @@ export function PredictionTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            {data.newsPrediction.models.map((model, i) => (
-              <div key={i} className="rounded-lg bg-secondary/30 p-3">
-                <p className="text-xs font-medium text-muted-foreground">{model.model}</p>
-                <p className="text-sm font-semibold">{model.prediction}</p>
-                <p className="text-xs text-muted-foreground">
-                  Confidence: {(model.confidence * 100).toFixed(0)}%
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Ensemble Confidence:</span>
-            <Badge variant="secondary">
-              {(data.newsPrediction.consensusConfidence * 100).toFixed(0)}%
+          <div className="flex items-center gap-4">
+            <Badge variant={data.newsPrediction.outcome.includes('BETTER') ? 'default' : 
+                          data.newsPrediction.outcome.includes('WORSE') ? 'destructive' : 'secondary'}
+                   className="text-base px-3 py-1">
+              {data.newsPrediction.outcome}
             </Badge>
+            <span className="text-sm text-muted-foreground">
+              Score: {data.newsPrediction.score > 0 ? '+' : ''}{data.newsPrediction.score.toFixed(1)}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {data.newsPrediction.signals.map((signal, i) => (
+              <Badge key={i} variant="outline" className="text-xs">
+                {signal}
+              </Badge>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -447,8 +684,8 @@ export function PredictionTab() {
       <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-foreground">
         <p className="font-medium">⚠️ Risk Disclaimer</p>
         <p className="text-xs text-muted-foreground">
-          This analysis is for educational purposes only. Always use proper risk management and position sizing.
-          Past performance does not guarantee future results.
+          Trade with institutions, not against them. This analysis is for educational purposes only. 
+          Always use proper risk management and position sizing. Past performance does not guarantee future results.
         </p>
       </div>
     </div>
