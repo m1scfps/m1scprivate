@@ -117,7 +117,8 @@ const Index = () => {
         {/* Footer */}
         <footer className="mt-12 border-t border-border/30 pt-6 text-center text-sm text-muted-foreground">
           <p>© 2026 m1scfx. All rights reserved.</p>
-          <p className="mt-1">Discord: m1scfx</p>
+          <p className="mt-1">Discord: m1scfx 
+Website: https://guns.lol/m1scfx</p>
         </footer>
       </div>
     </div>;
