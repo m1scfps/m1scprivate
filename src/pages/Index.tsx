@@ -9,7 +9,6 @@ import { useMarketData } from "@/hooks/useMarketData";
 import { usePriceAlerts } from "@/hooks/usePriceAlerts";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
 import { Loader2 } from "lucide-react";
-
 const Index = () => {
   const {
     marketData,
@@ -20,9 +19,8 @@ const Index = () => {
     setAutoRefresh,
     refreshMarket,
     refreshParams,
-    updateParams,
+    updateParams
   } = useMarketData();
-
   const {
     alerts,
     addAlert,
@@ -30,9 +28,8 @@ const Index = () => {
     clearTriggered,
     checkAlerts,
     notificationsEnabled,
-    requestNotificationPermission,
+    requestNotificationPermission
   } = usePriceAlerts();
-
   const nqPremium = calculatePremiumInfo(marketData.ndx, marketData.nq, "NQ", params);
   const esPremium = calculatePremiumInfo(marketData.spx, marketData.es, "ES", params);
   const gcPremium = calculatePremiumInfo(marketData.gc * 0.996, marketData.gc, "GC", params);
@@ -41,26 +38,19 @@ const Index = () => {
   useEffect(() => {
     checkAlerts(marketData);
   }, [marketData, checkAlerts]);
-
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-background">
+    return <div className="flex min-h-screen items-center justify-center bg-gradient-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading live market data...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-gradient-background">
+  return <div className="min-h-screen bg-gradient-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <header className="mb-8 text-center">
-          <h1 className="mb-2 bg-gradient-primary bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
-            📊 Futures Price Converter
-          </h1>
+          <h1 className="mb-2 bg-gradient-primary bg-clip-text text-4xl font-bold text-transparent md:text-5xl"> Futures Price Converter</h1>
           <p className="text-muted-foreground">
             <span className="font-semibold">Real-time calibrated conversions</span> by m1scfx
           </p>
@@ -72,72 +62,36 @@ const Index = () => {
           <div>
             <Tabs defaultValue="nasdaq" className="w-full">
               <TabsList className="mb-6 grid w-full grid-cols-6 bg-secondary/30">
-                <TabsTrigger
-                  value="nasdaq"
-                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
-                >
+                <TabsTrigger value="nasdaq" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
                   📈 NASDAQ
                 </TabsTrigger>
-                <TabsTrigger
-                  value="sp500"
-                  className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white"
-                >
+                <TabsTrigger value="sp500" className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white">
                   📊 S&P 500
                 </TabsTrigger>
-                <TabsTrigger
-                  value="gold"
-                  className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground"
-                >
+                <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground">
                   🥇 Gold
                 </TabsTrigger>
-                <TabsTrigger
-                  value="prediction"
-                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
-                >
+                <TabsTrigger value="prediction" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
                   🤖 Bot
                 </TabsTrigger>
-                <TabsTrigger
-                  value="alerts"
-                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
-                >
+                <TabsTrigger value="alerts" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
                   🔔 Alerts {alerts.filter(a => !a.triggered).length > 0 && `(${alerts.filter(a => !a.triggered).length})`}
                 </TabsTrigger>
-                <TabsTrigger
-                  value="cheatsheet"
-                  className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground"
-                >
+                <TabsTrigger value="cheatsheet" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
                   📋 Cheat Sheet
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="nasdaq">
-                <MarketTab
-                  type="nasdaq"
-                  marketData={marketData}
-                  params={params}
-                  premium={nqPremium}
-                  variant="nasdaq"
-                />
+                <MarketTab type="nasdaq" marketData={marketData} params={params} premium={nqPremium} variant="nasdaq" />
               </TabsContent>
 
               <TabsContent value="sp500">
-                <MarketTab
-                  type="sp500"
-                  marketData={marketData}
-                  params={params}
-                  premium={esPremium}
-                  variant="sp500"
-                />
+                <MarketTab type="sp500" marketData={marketData} params={params} premium={esPremium} variant="sp500" />
               </TabsContent>
 
               <TabsContent value="gold">
-                <MarketTab
-                  type="gold"
-                  marketData={marketData}
-                  params={params}
-                  premium={gcPremium}
-                  variant="gold"
-                />
+                <MarketTab type="gold" marketData={marketData} params={params} premium={gcPremium} variant="gold" />
               </TabsContent>
 
               <TabsContent value="prediction">
@@ -145,15 +99,7 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="alerts">
-                <AlertsTab
-                  alerts={alerts}
-                  onAddAlert={addAlert}
-                  onRemoveAlert={removeAlert}
-                  onClearTriggered={clearTriggered}
-                  notificationsEnabled={notificationsEnabled}
-                  onRequestNotifications={requestNotificationPermission}
-                  marketData={marketData}
-                />
+                <AlertsTab alerts={alerts} onAddAlert={addAlert} onRemoveAlert={removeAlert} onClearTriggered={clearTriggered} notificationsEnabled={notificationsEnabled} onRequestNotifications={requestNotificationPermission} marketData={marketData} />
               </TabsContent>
 
               <TabsContent value="cheatsheet">
@@ -164,15 +110,7 @@ const Index = () => {
 
           {/* Right column - Sidebar */}
           <aside className="lg:sticky lg:top-8 lg:self-start">
-            <ParametersSidebar
-              params={params}
-              onParamsChange={updateParams}
-              onRefreshMarket={refreshMarket}
-              onRefreshParams={refreshParams}
-              isRefreshing={isRefreshing}
-              autoRefresh={autoRefresh}
-              onAutoRefreshChange={setAutoRefresh}
-            />
+            <ParametersSidebar params={params} onParamsChange={updateParams} onRefreshMarket={refreshMarket} onRefreshParams={refreshParams} isRefreshing={isRefreshing} autoRefresh={autoRefresh} onAutoRefreshChange={setAutoRefresh} />
           </aside>
         </div>
 
@@ -182,8 +120,6 @@ const Index = () => {
           <p className="mt-1">Discord: m1scfx</p>
         </footer>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
