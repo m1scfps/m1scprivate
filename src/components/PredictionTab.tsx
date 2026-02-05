@@ -16,34 +16,10 @@ import {
   Zap,
   Clock,
   Target,
-  ArrowUpDown,
-  Layers
+  Thermometer,
+  PieChart
 } from "lucide-react";
-
-interface VolumeProfile {
-  poc: number;
-  valueAreaHigh: number;
-  valueAreaLow: number;
-  biggestBuyersBelow: number;
-  biggestSellersAbove: number;
-}
-
-interface OrderFlowData {
-  cvd: number;
-  recentDelta: number;
-  deltaDirection: string;
-  orderFlowImbalance: number;
-  aggressorSide: string;
-  vwap: number;
-  vwapPosition: string;
-  vwapUpperBand: number;
-  vwapLowerBand: number;
-  dailyProfile: VolumeProfile;
-  weeklyProfile: VolumeProfile;
-  monthlyProfile: VolumeProfile;
-  blockFlow: number;
-  blockDirection: string;
-}
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 interface OptionsFlowData {
   positioning: string;
@@ -56,6 +32,19 @@ interface OptionsFlowData {
   gammaResistance: number;
   keyResistance: number;
   keySupport: number;
+}
+
+interface VolatilityData {
+  vixCurrent: number;
+  vix20dAvg: number;
+  vixChange1d: number;
+  vixChange5d: number;
+  vixTrend: string;
+  vixSignal: string;
+  vixHistory: Array<{ date: string; value: number }>;
+  nqVolatility: number;
+  esVolatility: number;
+  volatilityRegime: string;
 }
 
 interface SectorRotation {
@@ -83,12 +72,15 @@ interface PredictionData {
     premarketChange: number;
   } | null;
   optionsFlow: OptionsFlowData;
-  orderFlow: OrderFlowData;
+  volatility: VolatilityData;
   marketBreadth: {
     vixRegime: string;
     marketSentiment: string;
     internalsScore: number;
     nqSpyCorrelation: number;
+    advanceDecline: number;
+    newHighsLows: number;
+    breadthThrust: string;
   };
   sectorRotation: SectorRotation | null;
   economicEvents: EconomicEvent[];
@@ -152,13 +144,6 @@ export function PredictionTab() {
 
   const formatNumber = (num: number) => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  };
-
-  const formatLargeNumber = (num: number) => {
-    if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-    return num.toFixed(0);
   };
 
   if (isLoading) {
@@ -356,266 +341,256 @@ export function PredictionTab() {
         </div>
       </div>
 
-      {/* ORDER FLOW SECTION */}
+      {/* VOLATILITY SECTION */}
       <div className="space-y-4">
         <h3 className="text-md font-semibold flex items-center gap-2">
-          <ArrowUpDown className="h-5 w-5 text-accent" />
-          Order Flow
+          <Thermometer className="h-5 w-5 text-orange-500" />
+          Volatility
         </h3>
         
         <div className="grid gap-4 md:grid-cols-2">
-          {/* CVD & Delta */}
+          {/* VIX Details */}
           <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Cumulative Volume Delta (CVD)
+                VIX Analysis
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">CVD</span>
-                <span className={`font-mono font-bold ${data.orderFlow.cvd >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {data.orderFlow.cvd >= 0 ? '+' : ''}{formatLargeNumber(data.orderFlow.cvd)}
+                <span className="text-muted-foreground">Current VIX</span>
+                <span className="font-mono font-bold text-xl">{data.volatility?.vixCurrent?.toFixed(2) || data.optionsFlow.vixLevel.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">20-day Avg</span>
+                <span className="font-mono">{data.volatility?.vix20dAvg?.toFixed(2) || (data.optionsFlow.vixLevel / (1 + data.optionsFlow.vixVsAverage / 100)).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">1-day Change</span>
+                <span className={`font-mono font-bold ${(data.volatility?.vixChange1d || 0) >= 0 ? 'text-destructive' : 'text-success'}`}>
+                  {(data.volatility?.vixChange1d || 0) >= 0 ? '+' : ''}{(data.volatility?.vixChange1d || 0).toFixed(2)}%
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Recent Delta (5-bar)</span>
-                <span className={`font-mono font-bold ${data.orderFlow.recentDelta >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {data.orderFlow.recentDelta >= 0 ? '+' : ''}{formatLargeNumber(data.orderFlow.recentDelta)}
+                <span className="text-muted-foreground">5-day Change</span>
+                <span className={`font-mono font-bold ${(data.volatility?.vixChange5d || 0) >= 0 ? 'text-destructive' : 'text-success'}`}>
+                  {(data.volatility?.vixChange5d || 0) >= 0 ? '+' : ''}{(data.volatility?.vixChange5d || 0).toFixed(2)}%
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Delta Direction</span>
-                <Badge variant={data.orderFlow.deltaDirection === 'BUYING' ? 'default' : 
-                               data.orderFlow.deltaDirection === 'SELLING' ? 'destructive' : 'secondary'}>
-                  {data.orderFlow.deltaDirection}
+                <span className="text-muted-foreground">Trend</span>
+                <Badge variant={data.volatility?.vixTrend === 'RISING' ? 'destructive' : 
+                               data.volatility?.vixTrend === 'FALLING' ? 'default' : 'secondary'}>
+                  {data.volatility?.vixTrend || (data.optionsFlow.vixVsAverage > 5 ? 'RISING' : data.optionsFlow.vixVsAverage < -5 ? 'FALLING' : 'STABLE')}
                 </Badge>
               </div>
             </CardContent>
           </Card>
 
-          {/* Order Flow Imbalance & Blocks */}
+          {/* VIX Signal for NQ/ES */}
           <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Imbalance & Institutional Flow
+                VIX Signal for NQ/ES
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">OFI</span>
-                <span className={`font-mono font-bold ${data.orderFlow.orderFlowImbalance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {data.orderFlow.orderFlowImbalance >= 0 ? '+' : ''}{data.orderFlow.orderFlowImbalance.toFixed(3)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Aggressor</span>
-                <Badge variant={data.orderFlow.aggressorSide === 'BUYERS' ? 'default' : 
-                               data.orderFlow.aggressorSide === 'SELLERS' ? 'destructive' : 'secondary'}>
-                  {data.orderFlow.aggressorSide}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Block Flow</span>
-                <span className="font-mono">{data.orderFlow.blockFlow}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Smart Money</span>
-                <Badge variant={data.orderFlow.blockDirection.includes('BUYING') ? 'default' : 
-                               data.orderFlow.blockDirection.includes('SELLING') ? 'destructive' : 'secondary'}>
-                  {data.orderFlow.blockDirection}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* VWAP */}
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                VWAP Analysis
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">VWAP</span>
-                <span className="font-mono font-bold">{formatNumber(data.orderFlow.vwap)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Position</span>
-                <Badge variant={data.orderFlow.vwapPosition === 'ABOVE' ? 'default' : 'destructive'}>
-                  {data.orderFlow.vwapPosition}
-                </Badge>
+              <div className="rounded-lg bg-secondary/30 p-3">
+                <p className="text-sm font-medium text-muted-foreground">Signal</p>
+                <p className="text-lg font-bold">
+                  {data.volatility?.vixSignal || 
+                   (data.optionsFlow.vixLevel < 15 ? '🟢 LOW VOL - Favor Long NQ/ES' :
+                    data.optionsFlow.vixLevel > 25 ? '🔴 HIGH VOL - Caution/Hedges' :
+                    '🟡 NORMAL VOL - Trade Setups')}
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Upper Band</span>
-                  <p className="font-mono text-destructive">{formatNumber(data.orderFlow.vwapUpperBand)}</p>
+                  <span className="text-muted-foreground">Volatility Regime</span>
+                  <p className="font-mono font-bold">
+                    {data.volatility?.volatilityRegime || data.optionsFlow.gammaRegime.replace('_', ' ')}
+                  </p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Lower Band</span>
-                  <p className="font-mono text-success">{formatNumber(data.orderFlow.vwapLowerBand)}</p>
+                  <span className="text-muted-foreground">NQ Implied Vol</span>
+                  <p className="font-mono">{(data.volatility?.nqVolatility || data.optionsFlow.vixLevel * 1.1).toFixed(1)}%</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Volume Profiles */}
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Layers className="h-4 w-4" />
-                Volume Profiles
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Daily Profile */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Daily</p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">VAH</span>
-                    <p className="font-mono text-destructive">{formatNumber(data.orderFlow.dailyProfile.valueAreaHigh)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">POC</span>
-                    <p className="font-mono font-bold">{formatNumber(data.orderFlow.dailyProfile.poc)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">VAL</span>
-                    <p className="font-mono text-success">{formatNumber(data.orderFlow.dailyProfile.valueAreaLow)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Weekly Profile */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Weekly</p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">VAH</span>
-                    <p className="font-mono text-destructive">{formatNumber(data.orderFlow.weeklyProfile.valueAreaHigh)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">POC</span>
-                    <p className="font-mono font-bold">{formatNumber(data.orderFlow.weeklyProfile.poc)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">VAL</span>
-                    <p className="font-mono text-success">{formatNumber(data.orderFlow.weeklyProfile.valueAreaLow)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Monthly Profile */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Monthly</p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">VAH</span>
-                    <p className="font-mono text-destructive">{formatNumber(data.orderFlow.monthlyProfile.valueAreaHigh)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">POC</span>
-                    <p className="font-mono font-bold">{formatNumber(data.orderFlow.monthlyProfile.poc)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">VAL</span>
-                    <p className="font-mono text-success">{formatNumber(data.orderFlow.monthlyProfile.valueAreaLow)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Imbalance Zones */}
-              <div className="pt-2 border-t border-border/50">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Imbalance Zones (Monthly)</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Sellers Above VAH</span>
-                    <p className="font-mono text-destructive">
-                      {data.orderFlow.monthlyProfile.biggestSellersAbove > 0 
-                        ? formatNumber(data.orderFlow.monthlyProfile.biggestSellersAbove) 
-                        : 'None'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Buyers Below VAL</span>
-                    <p className="font-mono text-success">
-                      {data.orderFlow.monthlyProfile.biggestBuyersBelow > 0 
-                        ? formatNumber(data.orderFlow.monthlyProfile.biggestBuyersBelow) 
-                        : 'None'}
-                    </p>
-                  </div>
-                </div>
+              <div className="text-xs text-muted-foreground">
+                {data.optionsFlow.vixLevel < 15 && "Low VIX = dealer gamma support, buy dips"}
+                {data.optionsFlow.vixLevel >= 15 && data.optionsFlow.vixLevel <= 25 && "Normal VIX = standard risk, trade technicals"}
+                {data.optionsFlow.vixLevel > 25 && "High VIX = elevated risk, reduce size, consider hedges"}
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
 
-      {/* Market Breadth & Sector Rotation */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Market Breadth */}
-        <Card className="border-border/50 bg-card/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <BarChart3 className="h-4 w-4" />
-              Market Breadth
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">VIX Regime</span>
-              <Badge variant="outline">{data.marketBreadth.vixRegime.replace('_', ' ')}</Badge>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Sentiment</span>
-              <Badge variant={data.marketBreadth.marketSentiment === 'RISK_ON' ? 'default' : 
-                             data.marketBreadth.marketSentiment === 'RISK_OFF' ? 'destructive' : 'secondary'}>
-                {data.marketBreadth.marketSentiment.replace('_', ' ')}
-              </Badge>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Internals Score</span>
-              <span className={`font-mono ${data.marketBreadth.internalsScore > 0 ? 'text-success' : 
-                              data.marketBreadth.internalsScore < 0 ? 'text-destructive' : ''}`}>
-                {data.marketBreadth.internalsScore > 0 ? '+' : ''}{data.marketBreadth.internalsScore}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">NQ/SPY Correl</span>
-              <span className="font-mono">{data.marketBreadth.nqSpyCorrelation.toFixed(2)}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sector Rotation */}
-        {data.sectorRotation && (
+        {/* VIX Chart */}
+        {data.volatility?.vixHistory && data.volatility.vixHistory.length > 0 && (
           <Card className="border-border/50 bg-card/50">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <TrendingUp className="h-4 w-4" />
-                Sector Rotation
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                VIX 20-Day History
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Strongest</span>
-                <Badge variant="default">{data.sectorRotation.strongestSector}</Badge>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.volatility.vixHistory}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 10 }} 
+                      tickFormatter={(value) => value.slice(5)}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis 
+                      domain={['auto', 'auto']}
+                      tick={{ fontSize: 10 }}
+                      className="text-muted-foreground"
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    />
+                    <ReferenceLine y={20} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Weakest</span>
-                <Badge variant="destructive">{data.sectorRotation.weakestSector}</Badge>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tech Momentum</span>
-                <span className={`font-mono ${data.sectorRotation.techMomentum >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {data.sectorRotation.techMomentum >= 0 ? '+' : ''}{data.sectorRotation.techMomentum.toFixed(2)}%
-                </span>
+              <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
+                <span>Reference: VIX 20 = Normal</span>
               </div>
             </CardContent>
           </Card>
         )}
+      </div>
+
+      {/* Market Breadth & Sector Rotation */}
+      <div className="space-y-4">
+        <h3 className="text-md font-semibold flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-blue-500" />
+          Market Internals
+        </h3>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Market Breadth - Enhanced */}
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BarChart3 className="h-4 w-4" />
+                Market Breadth
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">VIX Regime</span>
+                <Badge variant={data.marketBreadth.vixRegime === 'LOW_FEAR' ? 'default' :
+                               data.marketBreadth.vixRegime === 'HIGH_FEAR' ? 'destructive' : 'secondary'}>
+                  {data.marketBreadth.vixRegime.replace('_', ' ')}
+                </Badge>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Sentiment</span>
+                <Badge variant={data.marketBreadth.marketSentiment === 'RISK_ON' ? 'default' : 
+                               data.marketBreadth.marketSentiment === 'RISK_OFF' ? 'destructive' : 'secondary'}>
+                  {data.marketBreadth.marketSentiment.replace('_', ' ')}
+                </Badge>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Internals Score</span>
+                <span className={`font-mono font-bold ${data.marketBreadth.internalsScore > 0 ? 'text-success' : 
+                                data.marketBreadth.internalsScore < 0 ? 'text-destructive' : ''}`}>
+                  {data.marketBreadth.internalsScore > 0 ? '+' : ''}{data.marketBreadth.internalsScore}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">NQ/SPY Correlation</span>
+                <span className="font-mono">{data.marketBreadth.nqSpyCorrelation.toFixed(2)}</span>
+              </div>
+              {data.marketBreadth.advanceDecline !== undefined && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Advance/Decline</span>
+                  <span className={`font-mono ${data.marketBreadth.advanceDecline > 0 ? 'text-success' : 'text-destructive'}`}>
+                    {data.marketBreadth.advanceDecline > 0 ? '+' : ''}{data.marketBreadth.advanceDecline.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {data.marketBreadth.breadthThrust && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Breadth Thrust</span>
+                  <Badge variant={data.marketBreadth.breadthThrust === 'BULLISH' ? 'default' :
+                                 data.marketBreadth.breadthThrust === 'BEARISH' ? 'destructive' : 'secondary'}>
+                    {data.marketBreadth.breadthThrust}
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sector Rotation - Enhanced */}
+          {data.sectorRotation && (
+            <Card className="border-border/50 bg-card/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <PieChart className="h-4 w-4" />
+                  Sector Rotation
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Strongest</span>
+                  <Badge variant="default">{data.sectorRotation.strongestSector}</Badge>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Weakest</span>
+                  <Badge variant="destructive">{data.sectorRotation.weakestSector}</Badge>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tech Momentum</span>
+                  <span className={`font-mono font-bold ${data.sectorRotation.techMomentum >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    {data.sectorRotation.techMomentum >= 0 ? '+' : ''}{data.sectorRotation.techMomentum.toFixed(2)}%
+                  </span>
+                </div>
+                
+                {/* Sector Strength Bars */}
+                <div className="pt-2 border-t border-border/50 space-y-2">
+                  <p className="text-xs text-muted-foreground">5-Day Sector Performance</p>
+                  {Object.entries(data.sectorRotation.sectorStrength)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([sector, strength]) => (
+                      <div key={sector} className="flex items-center gap-2">
+                        <span className="text-xs w-16">{sector}</span>
+                        <div className="flex-1 h-2 bg-secondary/30 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${strength >= 0 ? 'bg-success' : 'bg-destructive'}`}
+                            style={{ 
+                              width: `${Math.min(Math.abs(strength) * 10, 100)}%`,
+                              marginLeft: strength < 0 ? 'auto' : 0
+                            }}
+                          />
+                        </div>
+                        <span className={`text-xs font-mono w-14 text-right ${strength >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          {strength >= 0 ? '+' : ''}{strength.toFixed(2)}%
+                        </span>
+                      </div>
+                    ))
+                  }
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* News Prediction */}

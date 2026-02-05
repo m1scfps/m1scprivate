@@ -14,29 +14,17 @@ interface OHLCVBar {
   date: string;
 }
 
-interface VolumeProfile {
-  poc: number;
-  valueAreaHigh: number;
-  valueAreaLow: number;
-  biggestBuyersBelow: number;
-  biggestSellersAbove: number;
-}
-
-interface OrderFlowData {
-  cvd: number;
-  recentDelta: number;
-  deltaDirection: string;
-  orderFlowImbalance: number;
-  aggressorSide: string;
-  vwap: number;
-  vwapPosition: string;
-  vwapUpperBand: number;
-  vwapLowerBand: number;
-  dailyProfile: VolumeProfile;
-  weeklyProfile: VolumeProfile;
-  monthlyProfile: VolumeProfile;
-  blockFlow: number;
-  blockDirection: string;
+interface VolatilityData {
+  vixCurrent: number;
+  vix20dAvg: number;
+  vixChange1d: number;
+  vixChange5d: number;
+  vixTrend: string;
+  vixSignal: string;
+  vixHistory: Array<{ date: string; value: number }>;
+  nqVolatility: number;
+  esVolatility: number;
+  volatilityRegime: string;
 }
 
 interface OptionsFlowData {
@@ -61,12 +49,15 @@ interface PredictionResult {
     premarketChange: number;
   } | null;
   optionsFlow: OptionsFlowData;
-  orderFlow: OrderFlowData;
+  volatility: VolatilityData;
   marketBreadth: {
     vixRegime: string;
     marketSentiment: string;
     internalsScore: number;
     nqSpyCorrelation: number;
+    advanceDecline: number;
+    newHighsLows: number;
+    breadthThrust: string;
   };
   sectorRotation: {
     strongestSector: string;
@@ -140,182 +131,6 @@ async function fetchOHLCV(symbol: string, days: number = 90): Promise<OHLCVBar[]
   }
 }
 
-// Calculate VWAP and bands
-function calculateVWAP(bars: OHLCVBar[]): { vwap: number; upperBand: number; lowerBand: number } {
-  if (bars.length === 0) return { vwap: 0, upperBand: 0, lowerBand: 0 };
-
-  let cumVolume = 0;
-  let cumTPVolume = 0;
-  let cumTPSquared = 0;
-
-  for (const bar of bars) {
-    const tp = (bar.high + bar.low + bar.close) / 3;
-    cumVolume += bar.volume;
-    cumTPVolume += tp * bar.volume;
-    cumTPSquared += (tp * tp) * bar.volume;
-  }
-
-  if (cumVolume === 0) {
-    const lastClose = bars[bars.length - 1]?.close || 0;
-    return { vwap: lastClose, upperBand: lastClose + 50, lowerBand: lastClose - 50 };
-  }
-
-  const vwap = cumTPVolume / cumVolume;
-  const variance = (cumTPSquared / cumVolume) - (vwap * vwap);
-  const stdDev = Math.sqrt(Math.max(variance, 0));
-
-  return {
-    vwap,
-    upperBand: vwap + stdDev,
-    lowerBand: vwap - stdDev,
-  };
-}
-
-// Calculate Cumulative Volume Delta (CVD)
-function calculateCVD(bars: OHLCVBar[]): { cvd: number; recentDelta: number; direction: string } {
-  if (bars.length < 2) return { cvd: 0, recentDelta: 0, direction: 'NEUTRAL' };
-
-  let cvd = 0;
-  const deltas: number[] = [];
-
-  for (let i = 1; i < bars.length; i++) {
-    const priceChange = bars[i].close - bars[i - 1].close;
-    const delta = priceChange > 0 ? bars[i].volume : -bars[i].volume;
-    cvd += delta;
-    deltas.push(delta);
-  }
-
-  const recentDelta = deltas.slice(-5).reduce((a, b) => a + b, 0);
-  const direction = recentDelta > 0 ? 'BUYING' : recentDelta < 0 ? 'SELLING' : 'NEUTRAL';
-
-  return { cvd, recentDelta, direction };
-}
-
-// Calculate Order Flow Imbalance
-function calculateOrderFlowImbalance(bars: OHLCVBar[]): { ofi: number; aggressor: string } {
-  if (bars.length === 0) return { ofi: 0, aggressor: 'BALANCED' };
-
-  const recentBars = bars.slice(-10);
-  let totalOFI = 0;
-
-  for (const bar of recentBars) {
-    const range = bar.high - bar.low;
-    if (range === 0) continue;
-    
-    const closePosition = (bar.close - bar.low) / range;
-    const buyVolume = bar.volume * closePosition;
-    const sellVolume = bar.volume * (1 - closePosition);
-    totalOFI += (buyVolume - sellVolume) / bar.volume;
-  }
-
-  const avgOFI = totalOFI / recentBars.length;
-  const aggressor = avgOFI > 0.1 ? 'BUYERS' : avgOFI < -0.1 ? 'SELLERS' : 'BALANCED';
-
-  return { ofi: avgOFI, aggressor };
-}
-
-// Calculate Volume Profile with POC, VAH, VAL, and imbalance zones
-function calculateVolumeProfile(bars: OHLCVBar[], bins: number = 50): VolumeProfile {
-  if (bars.length === 0) {
-    return { poc: 0, valueAreaHigh: 0, valueAreaLow: 0, biggestBuyersBelow: 0, biggestSellersAbove: 0 };
-  }
-
-  const minPrice = Math.min(...bars.map(b => b.low));
-  const maxPrice = Math.max(...bars.map(b => b.high));
-  const priceRange = maxPrice - minPrice || 1;
-  const binSize = priceRange / bins;
-
-  const volumeAtPrice: Record<number, { total: number; buy: number; sell: number }> = {};
-
-  for (const bar of bars) {
-    const midPrice = (bar.high + bar.low) / 2;
-    const binIdx = Math.min(Math.max(Math.floor((midPrice - minPrice) / binSize), 0), bins - 1);
-    
-    if (!volumeAtPrice[binIdx]) {
-      volumeAtPrice[binIdx] = { total: 0, buy: 0, sell: 0 };
-    }
-    
-    volumeAtPrice[binIdx].total += bar.volume;
-    
-    // Estimate buy/sell based on close position
-    const range = bar.high - bar.low || 1;
-    const closePosition = (bar.close - bar.low) / range;
-    volumeAtPrice[binIdx].buy += bar.volume * closePosition;
-    volumeAtPrice[binIdx].sell += bar.volume * (1 - closePosition);
-  }
-
-  // Find POC (Point of Control)
-  let pocBin = 0;
-  let maxVolume = 0;
-  for (const [bin, data] of Object.entries(volumeAtPrice)) {
-    if (data.total > maxVolume) {
-      maxVolume = data.total;
-      pocBin = parseInt(bin);
-    }
-  }
-  const poc = minPrice + (pocBin + 0.5) * binSize;
-
-  // Calculate Value Area (70% of volume)
-  const totalVolume = Object.values(volumeAtPrice).reduce((sum, d) => sum + d.total, 0);
-  const sortedBins = Object.entries(volumeAtPrice)
-    .sort((a, b) => b[1].total - a[1].total);
-
-  let cumVolume = 0;
-  const valueAreaBins: number[] = [];
-  for (const [bin, data] of sortedBins) {
-    cumVolume += data.total;
-    valueAreaBins.push(parseInt(bin));
-    if (cumVolume >= totalVolume * 0.70) break;
-  }
-
-  const valueAreaHigh = minPrice + (Math.max(...valueAreaBins) + 1) * binSize;
-  const valueAreaLow = minPrice + Math.min(...valueAreaBins) * binSize;
-
-  // Find biggest buyers below VAL and sellers above VAH
-  let biggestBuyersBelow = 0;
-  let biggestSellersAbove = 0;
-  const valBin = Math.floor((valueAreaLow - minPrice) / binSize);
-  const vahBin = Math.floor((valueAreaHigh - minPrice) / binSize);
-
-  for (const [bin, data] of Object.entries(volumeAtPrice)) {
-    const binNum = parseInt(bin);
-    if (binNum < valBin && data.buy > biggestBuyersBelow) {
-      biggestBuyersBelow = minPrice + (binNum + 0.5) * binSize;
-    }
-    if (binNum > vahBin && data.sell > biggestSellersAbove) {
-      biggestSellersAbove = minPrice + (binNum + 0.5) * binSize;
-    }
-  }
-
-  return { poc, valueAreaHigh, valueAreaLow, biggestBuyersBelow, biggestSellersAbove };
-}
-
-// Detect large block trades
-function analyzeBlockTrades(bars: OHLCVBar[]): { blockFlow: number; direction: string } {
-  if (bars.length < 20) return { blockFlow: 0, direction: 'NEUTRAL' };
-
-  const volumes = bars.map(b => b.volume);
-  const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-  const stdVolume = Math.sqrt(
-    volumes.reduce((sum, v) => sum + Math.pow(v - avgVolume, 2), 0) / volumes.length
-  );
-
-  let blockFlow = 0;
-  const recentBars = bars.slice(-10);
-
-  for (const bar of recentBars) {
-    const zScore = (bar.volume - avgVolume) / (stdVolume || 1);
-    if (zScore > 2) {
-      blockFlow += bar.close > bar.open ? 1 : -1;
-    }
-  }
-
-  const direction = blockFlow > 0 ? 'INSTITUTIONAL BUYING' : 
-                    blockFlow < 0 ? 'INSTITUTIONAL SELLING' : 'NEUTRAL';
-
-  return { blockFlow, direction };
-}
-
 // Calculate Gamma Exposure Levels
 function calculateGammaExposure(currentPrice: number, vixLevel: number): {
   regime: string;
@@ -361,17 +176,95 @@ function calculateGammaExposure(currentPrice: number, vixLevel: number): {
   };
 }
 
-// Analyze market breadth
+// Analyze volatility
+function analyzeVolatility(vixBars: OHLCVBar[], nqBars: OHLCVBar[]): VolatilityData {
+  const defaultData: VolatilityData = {
+    vixCurrent: 20,
+    vix20dAvg: 20,
+    vixChange1d: 0,
+    vixChange5d: 0,
+    vixTrend: 'STABLE',
+    vixSignal: '🟡 NORMAL VOL - Trade Setups',
+    vixHistory: [],
+    nqVolatility: 22,
+    esVolatility: 18,
+    volatilityRegime: 'NORMAL',
+  };
+
+  if (vixBars.length < 20) return defaultData;
+
+  const vixCurrent = vixBars[vixBars.length - 1].close;
+  const vix20dAvg = vixBars.slice(-20).reduce((sum, b) => sum + b.close, 0) / 20;
+  
+  const vixChange1d = vixBars.length >= 2 
+    ? ((vixCurrent - vixBars[vixBars.length - 2].close) / vixBars[vixBars.length - 2].close) * 100 
+    : 0;
+  
+  const vixChange5d = vixBars.length >= 5 
+    ? ((vixCurrent - vixBars[vixBars.length - 5].close) / vixBars[vixBars.length - 5].close) * 100 
+    : 0;
+
+  // Determine trend
+  let vixTrend = 'STABLE';
+  if (vixChange5d > 10) vixTrend = 'RISING';
+  else if (vixChange5d < -10) vixTrend = 'FALLING';
+
+  // Generate signal for NQ/ES
+  let vixSignal = '🟡 NORMAL VOL - Trade Setups';
+  let volatilityRegime = 'NORMAL';
+  
+  if (vixCurrent < 15) {
+    vixSignal = '🟢 LOW VOL - Favor Long NQ/ES, buy dips';
+    volatilityRegime = 'LOW';
+  } else if (vixCurrent > 25) {
+    vixSignal = '🔴 HIGH VOL - Caution, reduce size, hedges';
+    volatilityRegime = 'HIGH';
+  } else if (vixCurrent > 20 && vixTrend === 'RISING') {
+    vixSignal = '🟠 RISING VOL - Tighten stops, reduce exposure';
+    volatilityRegime = 'ELEVATED';
+  }
+
+  // Build VIX history for chart
+  const vixHistory = vixBars.slice(-20).map(bar => ({
+    date: bar.date,
+    value: bar.close,
+  }));
+
+  // Calculate NQ implied volatility (approximation)
+  const nqVolatility = vixCurrent * 1.1; // NQ typically 10% more volatile than SPX
+  const esVolatility = vixCurrent * 0.95;
+
+  return {
+    vixCurrent,
+    vix20dAvg,
+    vixChange1d,
+    vixChange5d,
+    vixTrend,
+    vixSignal,
+    vixHistory,
+    nqVolatility,
+    esVolatility,
+    volatilityRegime,
+  };
+}
+
+// Enhanced market breadth analysis
 async function analyzeMarketBreadth(vixBars: OHLCVBar[], spyBars: OHLCVBar[], nqBars: OHLCVBar[]): Promise<{
   vixRegime: string;
   marketSentiment: string;
   internalsScore: number;
   nqSpyCorrelation: number;
+  advanceDecline: number;
+  newHighsLows: number;
+  breadthThrust: string;
 }> {
   let internalsScore = 0;
   let vixRegime = 'UNKNOWN';
   let marketSentiment = 'NEUTRAL';
   let nqSpyCorrelation = 0;
+  let advanceDecline = 0;
+  let newHighsLows = 0;
+  let breadthThrust = 'NEUTRAL';
 
   if (vixBars.length >= 20) {
     const vixCurrent = vixBars[vixBars.length - 1].close;
@@ -379,19 +272,30 @@ async function analyzeMarketBreadth(vixBars: OHLCVBar[], spyBars: OHLCVBar[], nq
 
     if (vixCurrent < 15) {
       vixRegime = 'LOW_FEAR';
-      internalsScore += 1;
+      internalsScore += 2;
     } else if (vixCurrent > 25) {
       vixRegime = 'HIGH_FEAR';
+      internalsScore -= 2;
+    } else if (vixCurrent > 20) {
+      vixRegime = 'ELEVATED';
       internalsScore -= 1;
     } else {
       vixRegime = 'NORMAL';
     }
 
     const vixSlope = (vixCurrent - vix20dAvg) / vix20dAvg;
-    if (vixSlope < -0.1) {
+    if (vixSlope < -0.15) {
+      marketSentiment = 'RISK_ON';
+      internalsScore += 2;
+      breadthThrust = 'BULLISH';
+    } else if (vixSlope > 0.15) {
+      marketSentiment = 'RISK_OFF';
+      internalsScore -= 2;
+      breadthThrust = 'BEARISH';
+    } else if (vixSlope < -0.05) {
       marketSentiment = 'RISK_ON';
       internalsScore += 1;
-    } else if (vixSlope > 0.1) {
+    } else if (vixSlope > 0.05) {
       marketSentiment = 'RISK_OFF';
       internalsScore -= 1;
     }
@@ -423,9 +327,13 @@ async function analyzeMarketBreadth(vixBars: OHLCVBar[], spyBars: OHLCVBar[], nq
     } else if (nqSpyCorrelation < 0.7) {
       internalsScore -= 1;
     }
+
+    // Estimate advance/decline from price action
+    const recentUp = nqBars.slice(-5).filter((b, i, arr) => i > 0 && b.close > arr[i-1].close).length;
+    advanceDecline = (recentUp / 4 - 0.5) * 2; // Normalize to -1 to 1
   }
 
-  return { vixRegime, marketSentiment, internalsScore, nqSpyCorrelation };
+  return { vixRegime, marketSentiment, internalsScore, nqSpyCorrelation, advanceDecline, newHighsLows, breadthThrust };
 }
 
 // Analyze sector rotation
@@ -441,14 +349,16 @@ async function analyzeSectorRotation(): Promise<{
     'Energy': 'XLE',
     'Healthcare': 'XLV',
     'Consumer': 'XLY',
+    'Utilities': 'XLU',
+    'Materials': 'XLB',
   };
 
   const sectorStrength: Record<string, number> = {};
 
   const promises = Object.entries(sectors).map(async ([name, ticker]) => {
-    const bars = await fetchOHLCV(ticker, 5);
-    if (bars.length >= 2) {
-      const momentum = (bars[bars.length - 1].close / bars[0].close - 1) * 100;
+    const bars = await fetchOHLCV(ticker, 10);
+    if (bars.length >= 5) {
+      const momentum = (bars[bars.length - 1].close / bars[bars.length - 5].close - 1) * 100;
       sectorStrength[name] = momentum;
     }
   });
@@ -500,48 +410,39 @@ function getEconomicCalendar(): Array<{
 
 // Generate institutional news prediction
 function predictNewsOutcome(
-  vwapPosition: string,
-  recentDelta: number,
-  blockFlow: number,
-  ofi: number,
+  vixLevel: number,
+  vixTrend: string,
+  marketSentiment: string,
   internalsScore: number
 ): { outcome: string; score: number; signals: string[] } {
   let score = 0;
   const signals: string[] = [];
 
-  if (vwapPosition === 'ABOVE') {
+  if (vixLevel < 18) {
     score += 1;
-    signals.push('Price above VWAP');
-  } else {
+    signals.push('Low VIX (complacent)');
+  } else if (vixLevel > 22) {
     score -= 1;
-    signals.push('Price below VWAP');
+    signals.push('Elevated VIX (fearful)');
   }
 
-  if (recentDelta > 0) {
-    score += 2;
-    signals.push('Positive delta');
-  } else {
-    score -= 2;
-    signals.push('Negative delta');
-  }
-
-  if (blockFlow > 0) {
+  if (vixTrend === 'FALLING') {
     score += 1.5;
-    signals.push('Institutional buying');
-  } else if (blockFlow < 0) {
+    signals.push('Falling volatility');
+  } else if (vixTrend === 'RISING') {
     score -= 1.5;
-    signals.push('Institutional selling');
+    signals.push('Rising volatility');
   }
 
-  if (ofi > 0.1) {
+  if (marketSentiment === 'RISK_ON') {
     score += 1;
-    signals.push('Aggressive buying');
-  } else if (ofi < -0.1) {
+    signals.push('Risk-on sentiment');
+  } else if (marketSentiment === 'RISK_OFF') {
     score -= 1;
-    signals.push('Aggressive selling');
+    signals.push('Risk-off sentiment');
   }
 
-  score += internalsScore;
+  score += internalsScore * 0.5;
 
   let outcome: string;
   if (score >= 2) {
@@ -557,11 +458,11 @@ function predictNewsOutcome(
 
 // Generate 9:30 open prediction
 function predictOpen(
-  vwapPosition: string,
-  recentDelta: number,
-  blockFlow: number,
+  vixLevel: number,
+  vixTrend: string,
+  marketSentiment: string,
   internalsScore: number,
-  poc: number,
+  techMomentum: number,
   gammaSupport: number,
   gammaResistance: number
 ): {
@@ -574,28 +475,39 @@ function predictOpen(
   let score = 0;
   const signals: string[] = [];
 
-  if (vwapPosition === 'ABOVE') {
+  // VIX signals
+  if (vixLevel < 15) {
     score += 2;
-    signals.push('✅ Above VWAP');
-  } else {
+    signals.push('✅ Low VIX environment');
+  } else if (vixLevel > 25) {
     score -= 2;
-    signals.push('❌ Below VWAP');
+    signals.push('❌ High VIX caution');
   }
 
-  if (recentDelta > 0) {
-    score += 2;
-    signals.push('✅ Positive delta');
-  } else {
-    score -= 2;
-    signals.push('❌ Negative delta');
+  if (vixTrend === 'FALLING') {
+    score += 1.5;
+    signals.push('✅ VIX falling');
+  } else if (vixTrend === 'RISING') {
+    score -= 1.5;
+    signals.push('❌ VIX rising');
   }
 
-  if (blockFlow > 0) {
+  // Sentiment
+  if (marketSentiment === 'RISK_ON') {
     score += 2;
-    signals.push('✅ Institutional buying');
-  } else if (blockFlow < 0) {
+    signals.push('✅ Risk-on sentiment');
+  } else if (marketSentiment === 'RISK_OFF') {
     score -= 2;
-    signals.push('❌ Institutional selling');
+    signals.push('❌ Risk-off sentiment');
+  }
+
+  // Tech momentum
+  if (techMomentum > 1) {
+    score += 1.5;
+    signals.push('✅ Strong tech momentum');
+  } else if (techMomentum < -1) {
+    score -= 1.5;
+    signals.push('❌ Weak tech momentum');
   }
 
   score += internalsScore;
@@ -607,19 +519,19 @@ function predictOpen(
   if (score >= 5) {
     direction = '📈 STRONG BULLISH';
     confidence = 'High';
-    strategy = `BUY dips to VWAP, target POC ${poc.toFixed(0)}`;
+    strategy = `BUY dips, target gamma resistance ${gammaResistance.toFixed(0)}`;
   } else if (score >= 2) {
     direction = '📈 BULLISH';
     confidence = 'Medium';
-    strategy = 'BUY on confirmation above VWAP';
+    strategy = 'BUY on confirmation, tight stops';
   } else if (score <= -5) {
     direction = '📉 STRONG BEARISH';
     confidence = 'High';
-    strategy = `SELL rallies to VWAP, target POC ${poc.toFixed(0)}`;
+    strategy = `SELL rallies, target gamma support ${gammaSupport.toFixed(0)}`;
   } else if (score <= -2) {
     direction = '📉 BEARISH';
     confidence = 'Medium';
-    strategy = 'SELL on confirmation below VWAP';
+    strategy = 'SELL on confirmation, reduce exposure';
   } else {
     direction = '↔️ NEUTRAL';
     confidence = 'Low';
@@ -635,7 +547,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting institutional NQ prediction analysis...');
+    console.log('Starting NQ prediction analysis with volatility focus...');
 
     // Fetch all market data in parallel
     const [nqBars, vixBars, spyBars, sectorRotation] = await Promise.all([
@@ -655,16 +567,8 @@ serve(async (req) => {
     const currentPrice = primaryBars[primaryBars.length - 1].close;
     const vixLevel = vixBars.length > 0 ? vixBars[vixBars.length - 1].close : 20;
 
-    // Calculate Order Flow indicators
-    const vwapData = calculateVWAP(primaryBars.slice(-20));
-    const cvdData = calculateCVD(primaryBars);
-    const ofiData = calculateOrderFlowImbalance(primaryBars);
-    const blockData = analyzeBlockTrades(primaryBars);
-
-    // Calculate Volume Profiles (daily, weekly, monthly)
-    const dailyProfile = calculateVolumeProfile(primaryBars.slice(-1));
-    const weeklyProfile = calculateVolumeProfile(primaryBars.slice(-5));
-    const monthlyProfile = calculateVolumeProfile(primaryBars.slice(-22));
+    // Analyze volatility
+    const volatility = analyzeVolatility(vixBars, primaryBars);
 
     // Calculate Gamma Exposure
     const gamma = calculateGammaExposure(currentPrice, vixLevel);
@@ -691,9 +595,6 @@ serve(async (req) => {
       optionsBias = 0;
     }
 
-    // VWAP position
-    const vwapPosition = currentPrice > vwapData.vwap ? 'ABOVE' : 'BELOW';
-
     // Pre-market data
     const prevClose = primaryBars.length >= 2 ? primaryBars[primaryBars.length - 2].close : currentPrice;
     const premarketChange = ((currentPrice - prevClose) / prevClose) * 100;
@@ -706,20 +607,21 @@ serve(async (req) => {
     const newsType = nextMajorEvent?.event || 'Economic Data';
 
     // Generate predictions
+    const techMomentum = sectorRotation?.techMomentum || 0;
+    
     const newsPrediction = predictNewsOutcome(
-      vwapPosition,
-      cvdData.recentDelta,
-      blockData.blockFlow,
-      ofiData.ofi,
+      vixLevel,
+      volatility.vixTrend,
+      breadth.marketSentiment,
       breadth.internalsScore
     );
 
     const openPrediction = predictOpen(
-      vwapPosition,
-      cvdData.recentDelta,
-      blockData.blockFlow,
+      vixLevel,
+      volatility.vixTrend,
+      breadth.marketSentiment,
       breadth.internalsScore,
-      monthlyProfile.poc,
+      techMomentum,
       gamma.support,
       gamma.resistance
     );
@@ -744,27 +646,15 @@ serve(async (req) => {
         keyResistance: gamma.keyResistance,
         keySupport: gamma.keySupport,
       },
-      orderFlow: {
-        cvd: cvdData.cvd,
-        recentDelta: cvdData.recentDelta,
-        deltaDirection: cvdData.direction,
-        orderFlowImbalance: ofiData.ofi,
-        aggressorSide: ofiData.aggressor,
-        vwap: vwapData.vwap,
-        vwapPosition,
-        vwapUpperBand: vwapData.upperBand,
-        vwapLowerBand: vwapData.lowerBand,
-        dailyProfile,
-        weeklyProfile,
-        monthlyProfile,
-        blockFlow: blockData.blockFlow,
-        blockDirection: blockData.direction,
-      },
+      volatility,
       marketBreadth: {
         vixRegime: breadth.vixRegime,
         marketSentiment: breadth.marketSentiment,
         internalsScore: breadth.internalsScore,
         nqSpyCorrelation: breadth.nqSpyCorrelation,
+        advanceDecline: breadth.advanceDecline,
+        newHighsLows: breadth.newHighsLows,
+        breadthThrust: breadth.breadthThrust,
       },
       sectorRotation,
       economicEvents,
@@ -777,7 +667,7 @@ serve(async (req) => {
       openPrediction,
     };
 
-    console.log('Institutional analysis complete');
+    console.log('Volatility-focused analysis complete');
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
