@@ -61,8 +61,8 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
         ];
 
     const tickers = isNasdaq ? ["QQQ", "NDX", "NQ"] : isSP500 ? ["SPY", "SPX", "ES"] : ["GLD", "GC"];
-    const defaultFrom = isNasdaq ? "QQQ" : isSP500 ? "SPY" : "GLD";
-    const defaultValue = isNasdaq ? 629.0 : isSP500 ? 595.0 : 305.0;
+    const defaultFrom = isNasdaq ? "NDX" : isSP500 ? "SPX" : "GLD";
+    const defaultValue = 0;
     const varianceTicker = isNasdaq ? "NQ" : isSP500 ? "ES" : "GC";
     const variancePoints = isNasdaq ? 10 : isSP500 ? 10 * (marketData.es / marketData.nq) : 10;
 
@@ -71,7 +71,7 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
         {/* Current Market Data */}
         <div>
           <h2 className="mb-4 text-lg font-semibold">Current Market Data</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {metrics.map((metric) => (
               <MetricCard
                 key={metric.label}
@@ -87,9 +87,9 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
         </div>
 
         {/* Premium and Ratios */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <PremiumCard
-            title={`🎯 ${isNasdaq ? "NQ" : isSP500 ? "ES" : "GC"} Futures Premium (Theoretical)`}
+            title={`${isNasdaq ? "NQ" : isSP500 ? "ES" : "GC"} Futures Premium (Theoretical)`}
             formula={isGold ? "Gold Spot × e^(r×t)" : `${isNasdaq ? "NDX" : "SPX"} × e^((r-d)×t)`}
             premium={premium}
             variant={variant}
@@ -99,7 +99,7 @@ export const MarketTab = forwardRef<HTMLDivElement, MarketTabProps>(
 
         {/* Price Converter */}
         <div>
-          <h2 className="mb-4 text-lg font-semibold">💱 Price Converter</h2>
+          <h2 className="mb-4 text-lg font-semibold">Futures Price Converter</h2>
           <PriceConverter
             tickers={tickers}
             defaultFrom={defaultFrom}

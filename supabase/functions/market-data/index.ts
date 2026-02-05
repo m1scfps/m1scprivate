@@ -237,8 +237,8 @@ serve(async (req) => {
 
       const params: MarketParams = {
         riskFreeRate,
-        ndxDivYield: ndxDivYield || 0.66,
-        spxDivYield: spxDivYield || 1.13,
+        ndxDivYield: ndxDivYield || 0.69,
+        spxDivYield: spxDivYield || 1.2,
         daysToExp: expiration.days,
         nextExpiration: expiration.date,
       };
@@ -264,8 +264,8 @@ serve(async (req) => {
 
       const params: MarketParams = {
         riskFreeRate,
-        ndxDivYield: ndxDivYield || 0.66,
-        spxDivYield: spxDivYield || 1.13,
+        ndxDivYield: ndxDivYield || 0.69,
+        spxDivYield: spxDivYield || 1.2,
         daysToExp: expiration.days,
         nextExpiration: expiration.date,
       };
