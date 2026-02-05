@@ -54,7 +54,7 @@ export function PriceConverter({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-end gap-3 sm:gap-4">
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">From</label>
           <Select value={fromTicker} onValueChange={setFromTicker}>
@@ -75,10 +75,11 @@ export function PriceConverter({
             onChange={(e) => setInputValue(e.target.value)}
             className="border-border/50 bg-secondary/30"
             step="0.01"
+            placeholder="0"
           />
         </div>
 
-        <div className="flex h-10 items-center justify-center text-muted-foreground">
+        <div className="hidden sm:flex h-10 items-center justify-center text-muted-foreground">
           <ArrowRight className="h-5 w-5" />
         </div>
 

@@ -291,8 +291,8 @@ export function getDefaultParams(): MarketParams {
   const expiration = getNextQuarterlyExpiration();
   return {
     riskFreeRate: 4.5,
-    ndxDivYield: 0.66,
-    spxDivYield: 1.13,
+    ndxDivYield: 0.69,
+    spxDivYield: 1.2,
     daysToExp: expiration.days,
     nextExpiration: expiration.date,
     lastParamUpdate: new Date(),
