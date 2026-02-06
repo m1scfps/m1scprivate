@@ -48,16 +48,20 @@ export function useMarketData(): UseMarketDataReturn {
         setMarketData({
           ...data.marketData,
           lastUpdate: new Date(data.marketData.lastUpdate),
-          gld: data.marketData.gld || 305.0,
-          gc: data.marketData.gc || 3050.0,
+          gld: data.marketData.gld || 441.0,
+          gc: data.marketData.gc || 4872.0,
           qqqPrevClose: data.marketData.qqqPrevClose || data.marketData.qqq,
           spyPrevClose: data.marketData.spyPrevClose || data.marketData.spy,
+          ndxPrevClose: data.marketData.ndxPrevClose || data.marketData.ndx,
+          spxPrevClose: data.marketData.spxPrevClose || data.marketData.spx,
         });
       }
 
       if (data?.params) {
         setParams({
           ...data.params,
+          ndxQqqRatio: data.params.ndxQqqRatio || 41.1180,
+          spxSpyRatio: data.params.spxSpyRatio || 10.0,
           lastParamUpdate: new Date(),
         });
       }
@@ -86,10 +90,12 @@ export function useMarketData(): UseMarketDataReturn {
         setMarketData({
           ...data.marketData,
           lastUpdate: new Date(data.marketData.lastUpdate),
-          gld: data.marketData.gld || 305.0,
-          gc: data.marketData.gc || 3050.0,
+          gld: data.marketData.gld || 441.0,
+          gc: data.marketData.gc || 4872.0,
           qqqPrevClose: data.marketData.qqqPrevClose || data.marketData.qqq,
           spyPrevClose: data.marketData.spyPrevClose || data.marketData.spy,
+          ndxPrevClose: data.marketData.ndxPrevClose || data.marketData.ndx,
+          spxPrevClose: data.marketData.spxPrevClose || data.marketData.spx,
         });
         toast({
           title: "Market Data Updated",
@@ -122,6 +128,8 @@ export function useMarketData(): UseMarketDataReturn {
       if (data?.params) {
         setParams({
           ...data.params,
+          ndxQqqRatio: data.params.ndxQqqRatio || 41.1180,
+          spxSpyRatio: data.params.spxSpyRatio || 10.0,
           lastParamUpdate: new Date(),
         });
         toast({
