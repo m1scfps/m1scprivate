@@ -9,6 +9,8 @@ export interface MarketData {
   spx: number;
   gld: number;
   gc: number;
+  qqqPrevClose: number;
+  spyPrevClose: number;
   lastUpdate: Date;
 }
 
@@ -282,6 +284,8 @@ export function getDefaultMarketData(): MarketData {
     spx: 5950.0,
     gld: 305.0,
     gc: 3050.0,
+    qqqPrevClose: 629.0,
+    spyPrevClose: 595.0,
     lastUpdate: new Date(),
   };
 }
