@@ -11,6 +11,8 @@ export interface MarketData {
   gc: number;
   qqqPrevClose: number;
   spyPrevClose: number;
+  ndxPrevClose: number;
+  spxPrevClose: number;
   lastUpdate: Date;
 }
 
@@ -20,6 +22,8 @@ export interface MarketParams {
   spxDivYield: number;
   daysToExp: number;
   nextExpiration: string;
+  ndxQqqRatio: number;
+  spxSpyRatio: number;
   lastParamUpdate: Date;
 }
 
@@ -276,16 +280,18 @@ export function calculatePremiumInfo(
 // Default market data (will be updated by user or API)
 export function getDefaultMarketData(): MarketData {
   return {
-    qqq: 629.0,
-    nq: 25993.25,
-    ndx: 25748.49,
-    spy: 595.0,
-    es: 5961.9,
-    spx: 5950.0,
-    gld: 305.0,
-    gc: 3050.0,
-    qqqPrevClose: 629.0,
-    spyPrevClose: 595.0,
+    qqq: 597.0,
+    nq: 24500.0,
+    ndx: 24548.0,
+    spy: 677.0,
+    es: 6800.0,
+    spx: 6798.0,
+    gld: 441.0,
+    gc: 4872.0,
+    qqqPrevClose: 629.43,
+    spyPrevClose: 694.04,
+    ndxPrevClose: 25878.0,
+    spxPrevClose: 6940.0,
     lastUpdate: new Date(),
   };
 }
@@ -294,11 +300,13 @@ export function getDefaultMarketData(): MarketData {
 export function getDefaultParams(): MarketParams {
   const expiration = getNextQuarterlyExpiration();
   return {
-    riskFreeRate: 4.5,
-    ndxDivYield: 0.69,
-    spxDivYield: 1.2,
+    riskFreeRate: 4.1,
+    ndxDivYield: 0.70,
+    spxDivYield: 1.22,
     daysToExp: expiration.days,
     nextExpiration: expiration.date,
+    ndxQqqRatio: 41.1180,
+    spxSpyRatio: 10.0,
     lastParamUpdate: new Date(),
   };
 }
