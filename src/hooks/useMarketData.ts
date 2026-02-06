@@ -50,6 +50,8 @@ export function useMarketData(): UseMarketDataReturn {
           lastUpdate: new Date(data.marketData.lastUpdate),
           gld: data.marketData.gld || 305.0,
           gc: data.marketData.gc || 3050.0,
+          qqqPrevClose: data.marketData.qqqPrevClose || data.marketData.qqq,
+          spyPrevClose: data.marketData.spyPrevClose || data.marketData.spy,
         });
       }
 
@@ -86,6 +88,8 @@ export function useMarketData(): UseMarketDataReturn {
           lastUpdate: new Date(data.marketData.lastUpdate),
           gld: data.marketData.gld || 305.0,
           gc: data.marketData.gc || 3050.0,
+          qqqPrevClose: data.marketData.qqqPrevClose || data.marketData.qqq,
+          spyPrevClose: data.marketData.spyPrevClose || data.marketData.spy,
         });
         toast({
           title: "Market Data Updated",

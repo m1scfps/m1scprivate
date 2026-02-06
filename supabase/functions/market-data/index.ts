@@ -14,6 +14,8 @@ interface MarketData {
   spx: number;
   gld: number;
   gc: number;
+  qqqPrevClose: number;
+  spyPrevClose: number;
   lastUpdate: string;
 }
 
@@ -74,10 +76,11 @@ async function fetchYahooQuote(symbol: string): Promise<number | null> {
   }
 }
 
-// Fetch dividend yield for ETF
+// Fetch dividend yield for ETF using quote endpoint (more reliable)
 async function fetchDividendYield(symbol: string): Promise<number | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=summaryDetail`;
+    // Use the quote endpoint which is more reliable
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}&fields=dividendYield,trailingAnnualDividendYield`;
     
     const response = await fetch(url, {
       headers: {
@@ -87,23 +90,107 @@ async function fetchDividendYield(symbol: string): Promise<number | null> {
     });
 
     if (!response.ok) {
+      console.log(`Quote API failed for ${symbol}, status: ${response.status}`);
+      
+      // Fallback: try chart endpoint for dividend info
+      const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y&events=div`;
+      const chartResponse = await fetch(chartUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (chartResponse.ok) {
+        const chartData = await chartResponse.json();
+        const meta = chartData?.chart?.result?.[0]?.meta;
+        const events = chartData?.chart?.result?.[0]?.events?.dividends;
+        const currentPrice = meta?.regularMarketPrice;
+        
+        if (events && currentPrice) {
+          // Calculate trailing 12m dividend yield from events
+          const oneYearAgo = Date.now() / 1000 - 365 * 24 * 60 * 60;
+          let totalDividends = 0;
+          for (const div of Object.values(events) as Array<{date: number, amount: number}>) {
+            if (div.date > oneYearAgo) {
+              totalDividends += div.amount;
+            }
+          }
+          const yieldPct = (totalDividends / currentPrice) * 100;
+          console.log(`${symbol} calculated yield from dividends: ${yieldPct.toFixed(2)}%`);
+          return Math.round(yieldPct * 100) / 100;
+        }
+      }
       return null;
     }
 
     const data = await response.json();
-    const summaryDetail = data?.quoteSummary?.result?.[0]?.summaryDetail;
+    const quote = data?.quoteResponse?.result?.[0];
     
-    if (summaryDetail?.dividendYield?.raw) {
-      return Math.round(summaryDetail.dividendYield.raw * 10000) / 100; // Convert to percentage
+    if (quote?.dividendYield) {
+      console.log(`${symbol} yield from quote API: ${quote.dividendYield}%`);
+      return Math.round(quote.dividendYield * 100) / 100;
+    }
+    
+    if (quote?.trailingAnnualDividendYield) {
+      const yieldPct = quote.trailingAnnualDividendYield * 100;
+      console.log(`${symbol} trailing yield: ${yieldPct}%`);
+      return Math.round(yieldPct * 100) / 100;
     }
 
-    if (summaryDetail?.trailingAnnualDividendYield?.raw) {
-      return Math.round(summaryDetail.trailingAnnualDividendYield.raw * 10000) / 100;
+    console.log(`No yield found for ${symbol} in quote response`);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching dividend yield for ${symbol}:`, error);
+    return null;
+  }
+}
+
+// Fetch previous day's close price
+async function fetchPreviousClose(symbol: string): Promise<number | null> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch previous close for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (!result) {
+      return null;
+    }
+
+    // Get previous close from meta
+    const previousClose = result.meta?.chartPreviousClose || result.meta?.previousClose;
+    if (previousClose) {
+      console.log(`${symbol} previous close from meta: ${previousClose}`);
+      return Math.round(previousClose * 100) / 100;
+    }
+
+    // Fallback: get second-to-last close from history
+    const closes = result.indicators?.quote?.[0]?.close;
+    if (closes && closes.length >= 2) {
+      const validCloses = closes.filter((c: number | null) => c !== null);
+      if (validCloses.length >= 2) {
+        const prevClose = validCloses[validCloses.length - 2];
+        console.log(`${symbol} previous close from history: ${prevClose}`);
+        return Math.round(prevClose * 100) / 100;
+      }
     }
 
     return null;
   } catch (error) {
-    console.error(`Error fetching dividend yield for ${symbol}:`, error);
+    console.error(`Error fetching previous close for ${symbol}:`, error);
     return null;
   }
 }
@@ -192,10 +279,10 @@ serve(async (req) => {
     const endpoint = url.searchParams.get('endpoint') || 'all';
 
     if (endpoint === 'prices' || endpoint === 'all') {
-      console.log('Fetching market prices...');
+      console.log('Fetching market prices and previous closes...');
       
-      // Fetch all prices in parallel
-      const [qqq, nq, ndx, spy, es, spx, gld, gc] = await Promise.all([
+      // Fetch all prices and previous closes in parallel
+      const [qqq, nq, ndx, spy, es, spx, gld, gc, qqqPrevClose, spyPrevClose] = await Promise.all([
         fetchYahooQuote('QQQ'),
         fetchYahooQuote('NQ=F'),
         fetchYahooQuote('%5ENDX'),
@@ -204,9 +291,12 @@ serve(async (req) => {
         fetchYahooQuote('%5EGSPC'),
         fetchYahooQuote('GLD'),
         fetchYahooQuote('GC=F'),
+        fetchPreviousClose('QQQ'),
+        fetchPreviousClose('SPY'),
       ]);
 
       console.log('Prices fetched:', { qqq, nq, ndx, spy, es, spx, gld, gc });
+      console.log('Previous closes:', { qqqPrevClose, spyPrevClose });
 
       const marketData: MarketData = {
         qqq: qqq || 529.0,
@@ -217,6 +307,8 @@ serve(async (req) => {
         spx: spx || 5950.0,
         gld: gld || 305.0,
         gc: gc || 3050.0,
+        qqqPrevClose: qqqPrevClose || qqq || 529.0,
+        spyPrevClose: spyPrevClose || spy || 595.0,
         lastUpdate: new Date().toISOString(),
       };
 
@@ -226,12 +318,15 @@ serve(async (req) => {
         });
       }
 
-      // If 'all', continue to fetch params
+      // If 'all', continue to fetch params including real-time dividend yields
+      console.log('Fetching dividend yields and risk-free rate...');
       const [riskFreeRate, ndxDivYield, spxDivYield] = await Promise.all([
         fetchRiskFreeRate(),
         fetchDividendYield('QQQ'),
         fetchDividendYield('SPY'),
       ]);
+
+      console.log('Yields fetched:', { riskFreeRate, ndxDivYield, spxDivYield });
 
       const expiration = getNextQuarterlyExpiration();
 
