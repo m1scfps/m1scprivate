@@ -183,10 +183,47 @@ async function fetchPreviousClose(symbol: string): Promise<number | null> {
   }
 }
 
-// Fetch Treasury rate (risk-free proxy)
+// FRED API configuration for 3-month T-Bill rate
+const FRED_API_KEY = "1d62462ccff3f459aeef7976a002bb0a";
+const FRED_BASE_URL = "https://api.stlouisfed.org/fred/series/observations";
+
+// Fetch Treasury rate (risk-free proxy) from FRED API
 async function fetchRiskFreeRate(): Promise<number> {
   try {
-    // Try 13-week T-Bill rate
+    // FRED series ID: DGS3MO (Market Yield on U.S. Treasury Securities at 3-Month Constant Maturity)
+    const params = new URLSearchParams({
+      series_id: 'DGS3MO',
+      api_key: FRED_API_KEY,
+      file_type: 'json',
+      sort_order: 'desc',
+      limit: '1',
+    });
+
+    const response = await fetch(`${FRED_BASE_URL}?${params}`, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.observations?.length > 0) {
+        const latest = data.observations[0];
+        if (latest.value !== '.') { // FRED uses '.' for missing data
+          const rate = parseFloat(latest.value);
+          if (rate >= 0.1 && rate <= 10.0) { // Sanity check
+            console.log(`FRED 3M T-Bill rate: ${rate}%`);
+            return Math.round(rate * 1000) / 1000;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching FRED rate:', error);
+  }
+
+  // Fallback to Yahoo Finance 13-week T-Bill
+  try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5EIRX?interval=1d&range=5d`;
     
     const response = await fetch(url, {
@@ -202,15 +239,15 @@ async function fetchRiskFreeRate(): Promise<number> {
       const rate = meta?.regularMarketPrice;
       
       if (rate && rate >= 2.0 && rate <= 8.0) {
-        // Add 0.5% spread and round to 1 decimal
-        return Math.round((rate + 0.5) * 10) / 10;
+        console.log(`Yahoo IRX fallback rate: ${rate}%`);
+        return Math.round(rate * 1000) / 1000;
       }
     }
   } catch (error) {
-    console.error('Error fetching risk-free rate:', error);
+    console.error('Error fetching Yahoo IRX rate:', error);
   }
   
-  return 4.5; // Default fallback
+  return 4.31; // Default fallback (current approximate)
 }
 
 // Calculate next quarterly expiration (3rd Friday of Mar/Jun/Sep/Dec)
