@@ -80,14 +80,11 @@ async function fetchYahooQuote(symbol: string): Promise<number | null> {
   }
 }
 
-// Fetch index dividend yield from Yahoo Finance quoteSummary
-async function fetchIndexDividendYield(symbol: string): Promise<number | null> {
+// Fetch ETF dividend yield from Yahoo Finance (QQQ, SPY)
+async function fetchETFDividendYield(symbol: string): Promise<number | null> {
   try {
-    // For indices, we need to use the index symbol with proper encoding
-    const encodedSymbol = encodeURIComponent(symbol);
-    
-    // Try to get dividend yield from the chart endpoint with events
-    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?interval=1d&range=1y&events=div`;
+    // Use the chart endpoint with events to get dividend data
+    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y&events=div`;
     const chartResponse = await fetch(chartUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -111,20 +108,19 @@ async function fetchIndexDividendYield(symbol: string): Promise<number | null> {
           }
         }
         const yieldPct = (totalDividends / currentPrice) * 100;
-        console.log(`${symbol} calculated yield from dividends: ${yieldPct.toFixed(4)}%`);
-        return Math.round(yieldPct * 10000) / 10000;
+        console.log(`${symbol} calculated yield from dividends: ${yieldPct.toFixed(3)}%`);
+        return Math.round(yieldPct * 1000) / 1000;
       }
     }
 
-    // For indices like ^NDX and ^GSPC, use known institutional values
-    // These are updated less frequently but more accurate
-    if (symbol === '^NDX' || symbol === '%5ENDX') {
-      console.log('Using institutional NDX dividend yield: 0.70%');
-      return 0.70; // Nasdaq 100 index yield ~0.70%
+    // Fallback defaults based on institutional data
+    if (symbol === 'QQQ') {
+      console.log('Using fallback QQQ dividend yield: 0.660%');
+      return 0.660;
     }
-    if (symbol === '^GSPC' || symbol === '%5EGSPC') {
-      console.log('Using institutional SPX dividend yield: 1.22%');
-      return 1.22; // S&P 500 index yield ~1.22%
+    if (symbol === 'SPY') {
+      console.log('Using fallback SPY dividend yield: 1.130%');
+      return 1.130;
     }
 
     return null;
@@ -357,22 +353,22 @@ serve(async (req) => {
         });
       }
 
-      // If 'all', continue to fetch params including real-time INDEX dividend yields
-      console.log('Fetching INDEX dividend yields and risk-free rate...');
-      const [riskFreeRate, ndxDivYield, spxDivYield] = await Promise.all([
+      // If 'all', continue to fetch params including QQQ/SPY dividend yields
+      console.log('Fetching QQQ/SPY dividend yields and risk-free rate...');
+      const [riskFreeRate, qqqDivYield, spyDivYield] = await Promise.all([
         fetchRiskFreeRate(),
-        fetchIndexDividendYield('%5ENDX'),
-        fetchIndexDividendYield('%5EGSPC'),
+        fetchETFDividendYield('QQQ'),
+        fetchETFDividendYield('SPY'),
       ]);
 
-      console.log('Index yields fetched:', { riskFreeRate, ndxDivYield, spxDivYield });
+      console.log('ETF yields fetched:', { riskFreeRate, qqqDivYield, spyDivYield });
 
       const expiration = getNextQuarterlyExpiration();
 
       const params: MarketParams = {
         riskFreeRate,
-        ndxDivYield: ndxDivYield || 0.70,
-        spxDivYield: spxDivYield || 1.22,
+        ndxDivYield: qqqDivYield || 0.660,
+        spxDivYield: spyDivYield || 1.130,
         daysToExp: expiration.days,
         nextExpiration: expiration.date,
         ndxQqqRatio,
@@ -391,10 +387,10 @@ serve(async (req) => {
       console.log('Fetching market parameters...');
       
       // Need previous closes for ratio calculation
-      const [riskFreeRate, ndxDivYield, spxDivYield, qqqPrevClose, spyPrevClose, ndxPrevClose, spxPrevClose] = await Promise.all([
+      const [riskFreeRate, qqqDivYield, spyDivYield, qqqPrevClose, spyPrevClose, ndxPrevClose, spxPrevClose] = await Promise.all([
         fetchRiskFreeRate(),
-        fetchIndexDividendYield('%5ENDX'),
-        fetchIndexDividendYield('%5EGSPC'),
+        fetchETFDividendYield('QQQ'),
+        fetchETFDividendYield('SPY'),
         fetchPreviousClose('QQQ'),
         fetchPreviousClose('SPY'),
         fetchPreviousClose('%5ENDX'),
@@ -412,8 +408,8 @@ serve(async (req) => {
 
       const params: MarketParams = {
         riskFreeRate,
-        ndxDivYield: ndxDivYield || 0.70,
-        spxDivYield: spxDivYield || 1.22,
+        ndxDivYield: qqqDivYield || 0.660,
+        spxDivYield: spyDivYield || 1.130,
         daysToExp: expiration.days,
         nextExpiration: expiration.date,
         ndxQqqRatio,
