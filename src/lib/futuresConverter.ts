@@ -300,9 +300,9 @@ export function getDefaultMarketData(): MarketData {
 export function getDefaultParams(): MarketParams {
   const expiration = getNextQuarterlyExpiration();
   return {
-    riskFreeRate: 4.31, // FRED 3M T-Bill default
-    ndxDivYield: 0.70, // Nasdaq 100 Dividend Yield
-    spxDivYield: 1.22, // S&P 500 Dividend Yield
+    riskFreeRate: 3.67, // FRED 3M T-Bill default
+    ndxDivYield: 0.458, // QQQ Dividend Yield
+    spxDivYield: 1.054, // SPY Dividend Yield
     daysToExp: expiration.days,
     nextExpiration: expiration.date,
     ndxQqqRatio: 41.1180,

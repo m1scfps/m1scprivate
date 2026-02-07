@@ -9,6 +9,7 @@ import { useMarketData } from "@/hooks/useMarketData";
 import { usePriceAlerts } from "@/hooks/usePriceAlerts";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
 import { Loader2 } from "lucide-react";
+
 const Index = () => {
   const {
     marketData,
@@ -21,6 +22,7 @@ const Index = () => {
     refreshParams,
     updateParams
   } = useMarketData();
+
   const {
     alerts,
     addAlert,
@@ -30,6 +32,7 @@ const Index = () => {
     notificationsEnabled,
     requestNotificationPermission
   } = usePriceAlerts();
+
   const nqPremium = calculatePremiumInfo(marketData.ndx, marketData.nq, "NQ", params);
   const esPremium = calculatePremiumInfo(marketData.spx, marketData.es, "ES", params);
   const gcPremium = calculatePremiumInfo(marketData.gc * 0.996, marketData.gc, "GC", params);
@@ -38,19 +41,26 @@ const Index = () => {
   useEffect(() => {
     checkAlerts(marketData);
   }, [marketData, checkAlerts]);
+
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-gradient-background">
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading live market data...</p>
         </div>
-      </div>;
+      </div>
+    );
   }
-  return <div className="min-h-screen bg-gradient-background">
+
+  return (
+    <div className="min-h-screen bg-gradient-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <header className="mb-8 text-center">
-          <h1 className="mb-2 bg-gradient-primary bg-clip-text text-4xl font-bold text-transparent md:text-5xl"> Futures Price Converter</h1>
+          <h1 className="mb-2 bg-gradient-primary bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+            Futures Price Converter
+          </h1>
           <p className="text-muted-foreground">
             <span className="font-semibold">Real-time calibrated conversions</span> by m1scfx
           </p>
@@ -99,7 +109,15 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="alerts">
-                <AlertsTab alerts={alerts} onAddAlert={addAlert} onRemoveAlert={removeAlert} onClearTriggered={clearTriggered} notificationsEnabled={notificationsEnabled} onRequestNotifications={requestNotificationPermission} marketData={marketData} />
+                <AlertsTab
+                  alerts={alerts}
+                  onAddAlert={addAlert}
+                  onRemoveAlert={removeAlert}
+                  onClearTriggered={clearTriggered}
+                  notificationsEnabled={notificationsEnabled}
+                  onRequestNotifications={requestNotificationPermission}
+                  marketData={marketData}
+                />
               </TabsContent>
 
               <TabsContent value="cheatsheet">
@@ -110,16 +128,28 @@ const Index = () => {
 
           {/* Right column - Sidebar */}
           <aside className="lg:sticky lg:top-8 lg:self-start">
-            <ParametersSidebar params={params} onParamsChange={updateParams} onRefreshMarket={refreshMarket} onRefreshParams={refreshParams} isRefreshing={isRefreshing} autoRefresh={autoRefresh} onAutoRefreshChange={setAutoRefresh} />
+            <ParametersSidebar
+              params={params}
+              onParamsChange={updateParams}
+              onRefreshMarket={refreshMarket}
+              onRefreshParams={refreshParams}
+              isRefreshing={isRefreshing}
+              autoRefresh={autoRefresh}
+              onAutoRefreshChange={setAutoRefresh}
+            />
           </aside>
         </div>
 
         {/* Footer */}
         <footer className="mt-12 border-t border-border/30 pt-6 text-center text-sm text-muted-foreground">
           <p>© 2026 m1scfx. All rights reserved.</p>
-          <p className="mt-1">Discord: m1scfx   </p>
+          <p className="mt-1">
+            Discord: m1scfx | <a href="https://guns.lol/m1scfx" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">guns.lol/m1scfx</a>
+          </p>
         </footer>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;
