@@ -40,6 +40,11 @@ export function ParametersSidebar({
     });
   };
 
+  // Format percentage as x,xxx% (e.g., 3.677 -> 3,677%)
+  const formatPercentage = (value: number, decimals: number = 3) => {
+    return `${value.toFixed(decimals).replace('.', ',')}%`;
+  };
+
   return (
     <div className="space-y-6 rounded-xl border border-border/50 bg-gradient-card p-6 backdrop-blur-sm">
       <div className="flex items-center gap-2 text-lg font-semibold">
@@ -96,15 +101,15 @@ export function ParametersSidebar({
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg bg-secondary/30 p-3">
             <p className="text-xs text-muted-foreground">Risk Free Rate</p>
-            <p className="text-lg font-semibold">{params.riskFreeRate.toFixed(1)}%</p>
+            <p className="text-lg font-semibold">{formatPercentage(params.riskFreeRate)}</p>
           </div>
           <div className="rounded-lg bg-secondary/30 p-3">
             <p className="text-xs text-muted-foreground">NDX Div Yield</p>
-            <p className="text-lg font-semibold">{params.ndxDivYield.toFixed(2)}%</p>
+            <p className="text-lg font-semibold">{formatPercentage(params.ndxDivYield)}</p>
           </div>
           <div className="rounded-lg bg-secondary/30 p-3">
             <p className="text-xs text-muted-foreground">SPX Div Yield</p>
-            <p className="text-lg font-semibold">{params.spxDivYield.toFixed(2)}%</p>
+            <p className="text-lg font-semibold">{formatPercentage(params.spxDivYield)}</p>
           </div>
           <div className="rounded-lg bg-secondary/30 p-3">
             <p className="text-xs text-muted-foreground">Days to Exp</p>

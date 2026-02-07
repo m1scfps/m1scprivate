@@ -39,7 +39,7 @@ export function PremiumCard({ title, formula, premium, variant = "nasdaq" }: Pre
         </p>
         <p>
           <span className="text-muted-foreground">Premium %:</span>{" "}
-          <span className="font-medium text-foreground">{premium.percent.toFixed(4)}%</span>
+          <span className="font-medium text-foreground">{premium.percent.toFixed(4).replace('.', ',')}%</span>
         </p>
         <p>
           <span className="text-muted-foreground">$ per contract:</span>{" "}
