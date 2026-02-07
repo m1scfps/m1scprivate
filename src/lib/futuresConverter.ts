@@ -114,15 +114,15 @@ export function convert(
 ): number | null {
   if (fromTicker === toTicker) return value;
 
-  // Gold conversions - use simple live market ratio
-  // GLD tracks ~1/10 oz gold, so GLD * ratio ≈ GC
+  // Gold conversions - GLD tracks ~1/10 oz gold
+  // Use fixed ratio of 10.933 based on GLD NAV structure (not live futures premium)
+  const GLD_TO_GC_RATIO = 10.933;
+  
   if (fromTicker === 'GLD' && toTicker === 'GC') {
-    const ratio = marketData.gc / marketData.gld;
-    return value * ratio;
+    return value * GLD_TO_GC_RATIO;
   }
   if (fromTicker === 'GC' && toTicker === 'GLD') {
-    const ratio = marketData.gld / marketData.gc;
-    return value * ratio;
+    return value / GLD_TO_GC_RATIO;
   }
 
   // ETF to ETF conversions (QQQ, SPY)
