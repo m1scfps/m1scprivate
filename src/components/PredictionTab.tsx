@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CryptoSection } from "@/components/CryptoSection";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -654,6 +655,11 @@ export function PredictionTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Crypto Intelligence Section */}
+      <div className="border-t border-border/50 pt-6">
+        <CryptoSection />
+      </div>
 
       {/* Disclaimer */}
       <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-foreground">

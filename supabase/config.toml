@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.nq-prediction]
 verify_jwt = false
+
+[functions.crypto-data]
+verify_jwt = false
