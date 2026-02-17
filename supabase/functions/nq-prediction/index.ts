@@ -379,7 +379,7 @@ async function analyzeSectorRotation(): Promise<{
   };
 }
 
-// Get economic calendar
+// Get economic calendar - dynamically computed based on known schedules
 function getEconomicCalendar(): Array<{
   date: string;
   event: string;
@@ -388,24 +388,102 @@ function getEconomicCalendar(): Array<{
   previous: string;
   daysUntil: number;
 }> {
-  const upcomingEvents = [
-    { date: '2026-02-12', event: 'CPI', importance: 'HIGH', consensus: '2.8%', previous: '2.9%' },
-    { date: '2026-02-14', event: 'PPI', importance: 'HIGH', consensus: '2.3%', previous: '2.4%' },
-    { date: '2026-02-07', event: 'NFP', importance: 'HIGH', consensus: '180K', previous: '200K' },
-    { date: '2026-02-19', event: 'FOMC Minutes', importance: 'HIGH', consensus: 'N/A', previous: 'N/A' },
-  ];
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
+  const events: Array<{
+    date: Date;
+    event: string;
+    importance: string;
+    consensus: string;
+    previous: string;
+  }> = [];
 
-  return upcomingEvents
+  // Helper: get Nth weekday of month (0=Sunday, 1=Monday, ..., 5=Friday)
+  function getNthWeekday(year: number, month: number, weekday: number, n: number): Date {
+    const first = new Date(year, month, 1);
+    let day = 1 + ((weekday - first.getDay() + 7) % 7);
+    day += (n - 1) * 7;
+    return new Date(year, month, day);
+  }
+
+  // Helper: get specific date or nearest business day
+  function getBusinessDay(year: number, month: number, day: number): Date {
+    const d = new Date(year, month, day);
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Sunday -> Monday
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2); // Saturday -> Monday
+    return d;
+  }
+
+  // Generate events for current month and next month
+  for (let offset = -1; offset <= 2; offset++) {
+    const targetDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+
+    // NFP - First Friday of the month
+    const nfp = getNthWeekday(year, month, 5, 1);
+    events.push({ date: nfp, event: 'Non-Farm Payrolls (NFP)', importance: 'HIGH', consensus: 'TBD', previous: 'TBD' });
+
+    // CPI - Usually around the 10th-13th of the month
+    const cpi = getBusinessDay(year, month, 12);
+    events.push({ date: cpi, event: 'CPI', importance: 'HIGH', consensus: 'TBD', previous: 'TBD' });
+
+    // PPI - Usually day after CPI or 1-2 days later
+    const ppi = new Date(cpi);
+    ppi.setDate(ppi.getDate() + 1);
+    if (ppi.getDay() === 0) ppi.setDate(ppi.getDate() + 1);
+    if (ppi.getDay() === 6) ppi.setDate(ppi.getDate() + 2);
+    events.push({ date: ppi, event: 'PPI', importance: 'HIGH', consensus: 'TBD', previous: 'TBD' });
+
+    // Retail Sales - Usually around 15th-17th
+    const retail = getBusinessDay(year, month, 16);
+    events.push({ date: retail, event: 'Retail Sales', importance: 'MEDIUM', consensus: 'TBD', previous: 'TBD' });
+
+    // FOMC - meets ~8 times a year (Jan, Mar, May, Jun, Jul, Sep, Nov, Dec)
+    const fomcMonths = [0, 2, 4, 5, 6, 8, 10, 11]; // 0-indexed months
+    if (fomcMonths.includes(month)) {
+      // FOMC typically on 3rd Wednesday, announcement day
+      const fomc = getNthWeekday(year, month, 3, 3);
+      events.push({ date: fomc, event: 'FOMC Rate Decision', importance: 'HIGH', consensus: 'TBD', previous: 'TBD' });
+    }
+
+    // FOMC Minutes - released ~3 weeks after the meeting (in off months)
+    const fomcMinutesMonths = [1, 3, 5, 7, 8, 10]; // months when minutes typically come out
+    if (fomcMinutesMonths.includes(month)) {
+      const minutes = getNthWeekday(year, month, 3, 3); // ~3rd Wednesday
+      events.push({ date: minutes, event: 'FOMC Minutes', importance: 'HIGH', consensus: 'N/A', previous: 'N/A' });
+    }
+
+    // PCE - Last Friday of month (Fed's preferred inflation gauge)
+    const lastDay = new Date(year, month + 1, 0);
+    let pce = new Date(lastDay);
+    while (pce.getDay() !== 5) pce.setDate(pce.getDate() - 1);
+    events.push({ date: pce, event: 'Core PCE', importance: 'HIGH', consensus: 'TBD', previous: 'TBD' });
+  }
+
+  // Format and filter
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  return events
     .map(event => {
       const eventDate = new Date(event.date);
+      eventDate.setHours(0, 0, 0, 0);
       const daysUntil = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return { ...event, daysUntil };
+      return { ...event, date: formatDate(event.date), daysUntil };
     })
     .filter(event => event.daysUntil >= 0 && event.daysUntil <= 14)
-    .sort((a, b) => a.daysUntil - b.daysUntil);
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+    // Remove duplicates (same event type within 2 days)
+    .filter((event, i, arr) => {
+      const prev = arr.slice(0, i).find(e => e.event === event.event);
+      return !prev || Math.abs(prev.daysUntil - event.daysUntil) > 2;
+    });
 }
 
 // Generate institutional news prediction
