@@ -134,18 +134,19 @@ export function convert(
     return value * (marketData.nq / marketData.es);
   }
 
-  // ETF to Index (simple ratio - no cost of carry needed)
+  // ETF to Index - use fixed previous-close ratio (ndxQqqRatio, spxSpyRatio)
+  // These ratios are stable intraday; using live prices introduces drift
   if (fromTicker === 'QQQ' && toTicker === 'NDX') {
-    return value * (marketData.ndx / marketData.qqq);
+    return value * params.ndxQqqRatio;
   }
   if (fromTicker === 'NDX' && toTicker === 'QQQ') {
-    return value * (marketData.qqq / marketData.ndx);
+    return value / params.ndxQqqRatio;
   }
   if (fromTicker === 'SPY' && toTicker === 'SPX') {
-    return value * (marketData.spx / marketData.spy);
+    return value * params.spxSpyRatio;
   }
   if (fromTicker === 'SPX' && toTicker === 'SPY') {
-    return value * (marketData.spy / marketData.spx);
+    return value / params.spxSpyRatio;
   }
 
   // ETF to Futures (use live market ratio directly)
