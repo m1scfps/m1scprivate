@@ -149,18 +149,28 @@ export function convert(
     return value / params.spxSpyRatio;
   }
 
-  // ETF to Futures (use live market ratio directly)
+  // ETF to Futures - chain through index: QQQ→NDX (fixed ratio) → NQ (cost of carry)
   if (fromTicker === 'QQQ' && toTicker === 'NQ') {
-    return value * (marketData.nq / marketData.qqq);
+    const ndxValue = value * params.ndxQqqRatio;
+    return calculateCarryPremium(ndxValue, params.riskFreeRate, params.ndxDivYield, params.daysToExp);
   }
   if (fromTicker === 'NQ' && toTicker === 'QQQ') {
-    return value * (marketData.qqq / marketData.nq);
+    const t = params.daysToExp / 365.0;
+    const r = params.riskFreeRate / 100.0;
+    const d = params.ndxDivYield / 100.0;
+    const ndxValue = value / Math.exp((r - d) * t);
+    return ndxValue / params.ndxQqqRatio;
   }
   if (fromTicker === 'SPY' && toTicker === 'ES') {
-    return value * (marketData.es / marketData.spy);
+    const spxValue = value * params.spxSpyRatio;
+    return calculateCarryPremium(spxValue, params.riskFreeRate, params.spxDivYield, params.daysToExp);
   }
   if (fromTicker === 'ES' && toTicker === 'SPY') {
-    return value * (marketData.spy / marketData.es);
+    const t = params.daysToExp / 365.0;
+    const r = params.riskFreeRate / 100.0;
+    const d = params.spxDivYield / 100.0;
+    const spxValue = value / Math.exp((r - d) * t);
+    return spxValue / params.spxSpyRatio;
   }
 
   // Index to Futures - apply cost of carry formula
