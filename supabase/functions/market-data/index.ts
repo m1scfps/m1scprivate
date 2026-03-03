@@ -253,40 +253,30 @@ function getNextQuarterlyExpiration(): { date: string; days: number } {
   const currentMonth = now.getMonth() + 1;
 
   const expirationMonths = [3, 6, 9, 12];
-  let nextMonth: number | null = null;
-  let expirationYear = year;
+
+  const getThirdFriday = (m: number, y: number): Date => {
+    const firstDay = new Date(y, m - 1, 1);
+    const firstDayOfWeek = firstDay.getDay();
+    const daysUntilFriday = (5 - firstDayOfWeek + 7) % 7;
+    const thirdFriday = new Date(firstDay);
+    thirdFriday.setDate(1 + daysUntilFriday + 14);
+    return thirdFriday;
+  };
 
   for (const month of expirationMonths) {
-    if (month > currentMonth) {
-      nextMonth = month;
-      break;
+    if (month < currentMonth) continue;
+    const thirdFriday = getThirdFriday(month, year);
+    if (thirdFriday.getTime() >= now.getTime()) {
+      const timeDiff = thirdFriday.getTime() - now.getTime();
+      const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
+      return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
     }
   }
 
-  if (nextMonth === null) {
-    nextMonth = 3;
-    expirationYear = year + 1;
-  }
-
-  // Get 3rd Friday of the month
-  const firstDay = new Date(expirationYear, nextMonth - 1, 1);
-  const firstDayOfWeek = firstDay.getDay();
-  let daysUntilFriday = (5 - firstDayOfWeek + 7) % 7;
-  if (daysUntilFriday === 0) {
-    daysUntilFriday = 7;
-  }
-
-  const thirdFriday = new Date(firstDay);
-  thirdFriday.setDate(firstDay.getDate() + daysUntilFriday + 14);
-
+  const thirdFriday = getThirdFriday(3, year + 1);
   const timeDiff = thirdFriday.getTime() - now.getTime();
-  let daysToExp = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-  daysToExp = Math.max(daysToExp, 1);
-
-  return {
-    date: thirdFriday.toISOString().split('T')[0],
-    days: daysToExp,
-  };
+  const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
+  return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
 }
 
 serve(async (req) => {

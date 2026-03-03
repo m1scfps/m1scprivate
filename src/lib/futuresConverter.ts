@@ -44,48 +44,33 @@ export function getNextQuarterlyExpiration(): { date: string; days: number } {
   // Quarterly expiration months
   const expirationMonths = [3, 6, 9, 12];
 
-  // Find next expiration month
-  let nextMonth: number | null = null;
-  let expirationYear = year;
+  // Helper to get 3rd Friday of a given month/year
+  const getThirdFriday = (m: number, y: number): Date => {
+    const firstDay = new Date(y, m - 1, 1);
+    const firstDayOfWeek = firstDay.getDay();
+    // Days until first Friday (Friday = 5). If 1st is Friday, daysUntil = 0.
+    const daysUntilFriday = (5 - firstDayOfWeek + 7) % 7;
+    const thirdFriday = new Date(firstDay);
+    thirdFriday.setDate(1 + daysUntilFriday + 14);
+    return thirdFriday;
+  };
 
+  // Check current month first if it's a quarterly month and expiration hasn't passed
   for (const month of expirationMonths) {
-    if (month > currentMonth) {
-      nextMonth = month;
-      break;
+    if (month < currentMonth) continue;
+    const thirdFriday = getThirdFriday(month, year);
+    if (thirdFriday.getTime() >= now.getTime()) {
+      const timeDiff = thirdFriday.getTime() - now.getTime();
+      const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
+      return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
     }
   }
 
-  // If no month found this year, use March next year
-  if (nextMonth === null) {
-    nextMonth = 3;
-    expirationYear = year + 1;
-  }
-
-  // Get 3rd Friday of the month
-  const firstDay = new Date(expirationYear, nextMonth - 1, 1);
-  const firstDayOfWeek = firstDay.getDay();
-
-  // Calculate days until first Friday (Friday = 5)
-  let daysUntilFriday = (5 - firstDayOfWeek + 7) % 7;
-  if (daysUntilFriday === 0) {
-    daysUntilFriday = 7;
-  }
-
-  // 3rd Friday = first Friday + 14 days
-  const thirdFriday = new Date(firstDay);
-  thirdFriday.setDate(firstDay.getDate() + daysUntilFriday + 14);
-
-  // Calculate days to expiration
+  // All this year's expirations have passed — use March next year
+  const thirdFriday = getThirdFriday(3, year + 1);
   const timeDiff = thirdFriday.getTime() - now.getTime();
-  let daysToExp = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-  daysToExp = Math.max(daysToExp, 1); // Minimum 1 day
-
-  const dateStr = thirdFriday.toISOString().split('T')[0];
-
-  return {
-    date: dateStr,
-    days: daysToExp,
-  };
+  const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
+  return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
 }
 
 // Calculate theoretical futures price using cost of carry formula
