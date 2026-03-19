@@ -441,7 +441,7 @@ serve(async (req) => {
         ? Math.round((spxPrevClose / spyPrevClose) * 10000) / 10000 
         : 10.0;
 
-      const expiration = getNextQuarterlyExpiration();
+      const expiration = await getExpiration();
 
       const params: MarketParams = {
         riskFreeRate,
