@@ -400,7 +400,7 @@ serve(async (req) => {
 
       console.log('ETF yields fetched:', { riskFreeRate, qqqDivYield, spyDivYield });
 
-      const expiration = getNextQuarterlyExpiration();
+      const expiration = await getExpiration();
 
       const params: MarketParams = {
         riskFreeRate,
