@@ -354,17 +354,7 @@ function getNextQuarterlyExpiration(): { date: string; days: number } {
   const now = new Date();
   const year = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-
   const expirationMonths = [3, 6, 9, 12];
-
-  const getThirdFriday = (m: number, y: number): Date => {
-    const firstDay = new Date(y, m - 1, 1);
-    const firstDayOfWeek = firstDay.getDay();
-    const daysUntilFriday = (5 - firstDayOfWeek + 7) % 7;
-    const thirdFriday = new Date(firstDay);
-    thirdFriday.setDate(1 + daysUntilFriday + 14);
-    return thirdFriday;
-  };
 
   for (const month of expirationMonths) {
     if (month < currentMonth) continue;
@@ -382,9 +372,9 @@ function getNextQuarterlyExpiration(): { date: string; days: number } {
   return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
 }
 
-// Get expiration: try auto-detect from Yahoo, fallback to static calculation
+// Get expiration: try auto-detect via volume, fallback to static calculation
 async function getExpiration(): Promise<{ date: string; days: number }> {
-  const detected = await fetchFrontMonthExpiration('NQ=F');
+  const detected = await fetchFrontMonthExpiration();
   if (detected) return detected;
   
   console.log('Falling back to static quarterly expiration calculation');
