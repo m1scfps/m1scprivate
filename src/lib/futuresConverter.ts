@@ -173,26 +173,18 @@ export function convert(
     return spxValue / params.spxSpyRatio;
   }
 
-  // Index to Futures - apply cost of carry formula
+  // Index to Futures - use live market ratio (actual premium, not theoretical)
   if (fromTicker === 'NDX' && toTicker === 'NQ') {
-    return calculateCarryPremium(value, params.riskFreeRate, params.ndxDivYield, params.daysToExp);
+    return value * (marketData.nq / marketData.ndx);
   }
   if (fromTicker === 'NQ' && toTicker === 'NDX') {
-    const t = params.daysToExp / 365.0;
-    const r = params.riskFreeRate / 100.0;
-    const d = params.ndxDivYield / 100.0;
-    const carryMultiplier = Math.exp((r - d) * t);
-    return value / carryMultiplier;
+    return value * (marketData.ndx / marketData.nq);
   }
   if (fromTicker === 'SPX' && toTicker === 'ES') {
-    return calculateCarryPremium(value, params.riskFreeRate, params.spxDivYield, params.daysToExp);
+    return value * (marketData.es / marketData.spx);
   }
   if (fromTicker === 'ES' && toTicker === 'SPX') {
-    const t = params.daysToExp / 365.0;
-    const r = params.riskFreeRate / 100.0;
-    const d = params.spxDivYield / 100.0;
-    const carryMultiplier = Math.exp((r - d) * t);
-    return value / carryMultiplier;
+    return value * (marketData.spx / marketData.es);
   }
 
   return value;
