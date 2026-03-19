@@ -246,7 +246,45 @@ async function fetchRiskFreeRate(): Promise<number> {
   return 4.31; // Default fallback (current approximate)
 }
 
-// Calculate next quarterly expiration (3rd Friday of Mar/Jun/Sep/Dec)
+// Fetch front-month contract expiration from Yahoo Finance metadata
+async function fetchFrontMonthExpiration(symbol: string = 'NQ=F'): Promise<{ date: string; days: number } | null> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+
+    // Yahoo Finance provides expireDate as a Unix timestamp for futures
+    const expireDate = meta?.expireDate;
+    if (expireDate) {
+      const expDate = new Date(expireDate * 1000);
+      const now = new Date();
+      const timeDiff = expDate.getTime() - now.getTime();
+      const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
+      const dateStr = expDate.toISOString().split('T')[0];
+      console.log(`Front-month ${symbol} expires: ${dateStr} (${daysToExp} days)`);
+      return { date: dateStr, days: daysToExp };
+    }
+
+    // Also check instrumentInfo or other metadata fields
+    const contractSymbol = meta?.symbol;
+    console.log(`No expireDate found for ${symbol}, contract: ${contractSymbol}`);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching front-month expiration for ${symbol}:`, error);
+    return null;
+  }
+}
+
+// Fallback: Calculate next quarterly expiration (3rd Friday of Mar/Jun/Sep/Dec)
 function getNextQuarterlyExpiration(): { date: string; days: number } {
   const now = new Date();
   const year = now.getFullYear();
@@ -277,6 +315,15 @@ function getNextQuarterlyExpiration(): { date: string; days: number } {
   const timeDiff = thirdFriday.getTime() - now.getTime();
   const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
   return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
+}
+
+// Get expiration: try auto-detect from Yahoo, fallback to static calculation
+async function getExpiration(): Promise<{ date: string; days: number }> {
+  const detected = await fetchFrontMonthExpiration('NQ=F');
+  if (detected) return detected;
+  
+  console.log('Falling back to static quarterly expiration calculation');
+  return getNextQuarterlyExpiration();
 }
 
 serve(async (req) => {
