@@ -246,42 +246,107 @@ async function fetchRiskFreeRate(): Promise<number> {
   return 4.31; // Default fallback (current approximate)
 }
 
-// Fetch front-month contract expiration from Yahoo Finance metadata
-async function fetchFrontMonthExpiration(symbol: string = 'NQ=F'): Promise<{ date: string; days: number } | null> {
+// Fetch front-month contract expiration by checking volume on current vs next quarter
+async function fetchFrontMonthExpiration(): Promise<{ date: string; days: number } | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      },
-    });
+    const now = new Date();
+    const year = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const expirationMonths = [3, 6, 9, 12];
 
-    if (!response.ok) return null;
+    // Find current and next quarterly months
+    let currentQtr = expirationMonths.find(m => m >= currentMonth) || 3;
+    let currentQtrYear = currentQtr >= currentMonth ? year : year + 1;
+    let nextQtrIdx = expirationMonths.indexOf(currentQtr) + 1;
+    let nextQtr = nextQtrIdx < expirationMonths.length ? expirationMonths[nextQtrIdx] : 3;
+    let nextQtrYear = nextQtrIdx < expirationMonths.length ? currentQtrYear : currentQtrYear + 1;
 
-    const data = await response.json();
-    const meta = data?.chart?.result?.[0]?.meta;
+    // Build Yahoo contract symbols: NQM26, NQU26, etc.
+    const monthCodes: Record<number, string> = { 3: 'H', 6: 'M', 9: 'U', 12: 'Z' };
+    const currentSymbol = `NQ${monthCodes[currentQtr]}${String(currentQtrYear).slice(-2)}.CME`;
+    const nextSymbol = `NQ${monthCodes[nextQtr]}${String(nextQtrYear).slice(-2)}.CME`;
 
-    // Yahoo Finance provides expireDate as a Unix timestamp for futures
-    const expireDate = meta?.expireDate;
-    if (expireDate) {
-      const expDate = new Date(expireDate * 1000);
-      const now = new Date();
+    console.log(`Checking contract volumes: ${currentSymbol} vs ${nextSymbol}`);
+
+    // Fetch both contracts in parallel
+    const [currentRes, nextRes] = await Promise.all([
+      fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${currentSymbol}?interval=1d&range=5d`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' },
+      }).catch(() => null),
+      fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${nextSymbol}?interval=1d&range=5d`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' },
+      }).catch(() => null),
+    ]);
+
+    let currentVolume = 0;
+    let nextVolume = 0;
+    let currentExpireDate: number | null = null;
+    let nextExpireDate: number | null = null;
+
+    if (currentRes?.ok) {
+      const data = await currentRes.json();
+      const result = data?.chart?.result?.[0];
+      const volumes = result?.indicators?.quote?.[0]?.volume;
+      if (volumes) {
+        const validVols = volumes.filter((v: number | null) => v !== null);
+        currentVolume = validVols.length > 0 ? validVols[validVols.length - 1] : 0;
+      }
+      currentExpireDate = result?.meta?.expireDate || null;
+      console.log(`${currentSymbol}: volume=${currentVolume}, expireDate=${currentExpireDate}`);
+    }
+
+    if (nextRes?.ok) {
+      const data = await nextRes.json();
+      const result = data?.chart?.result?.[0];
+      const volumes = result?.indicators?.quote?.[0]?.volume;
+      if (volumes) {
+        const validVols = volumes.filter((v: number | null) => v !== null);
+        nextVolume = validVols.length > 0 ? validVols[validVols.length - 1] : 0;
+      }
+      nextExpireDate = result?.meta?.expireDate || null;
+      console.log(`${nextSymbol}: volume=${nextVolume}, expireDate=${nextExpireDate}`);
+    }
+
+    // The front month is whichever has higher volume
+    const useNext = nextVolume > currentVolume && nextVolume > 0;
+    const activeExpireDate = useNext ? nextExpireDate : currentExpireDate;
+    const activeSymbol = useNext ? nextSymbol : currentSymbol;
+
+    console.log(`Front-month contract: ${activeSymbol} (volume winner: ${useNext ? 'next' : 'current'})`);
+
+    if (activeExpireDate) {
+      const expDate = new Date(activeExpireDate * 1000);
       const timeDiff = expDate.getTime() - now.getTime();
       const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
       const dateStr = expDate.toISOString().split('T')[0];
-      console.log(`Front-month ${symbol} expires: ${dateStr} (${daysToExp} days)`);
+      console.log(`Auto-detected expiration: ${dateStr} (${daysToExp} days)`);
       return { date: dateStr, days: daysToExp };
     }
 
-    // Also check instrumentInfo or other metadata fields
-    const contractSymbol = meta?.symbol;
-    console.log(`No expireDate found for ${symbol}, contract: ${contractSymbol}`);
+    // If we detected volume roll but no expireDate, use the winning quarter's 3rd Friday
+    if (useNext) {
+      const thirdFriday = getThirdFriday(nextQtr, nextQtrYear);
+      const timeDiff = thirdFriday.getTime() - now.getTime();
+      const daysToExp = Math.max(Math.ceil(timeDiff / (1000 * 60 * 60 * 24)), 1);
+      console.log(`Volume rolled to next quarter: ${thirdFriday.toISOString().split('T')[0]}`);
+      return { date: thirdFriday.toISOString().split('T')[0], days: daysToExp };
+    }
+
     return null;
   } catch (error) {
-    console.error(`Error fetching front-month expiration for ${symbol}:`, error);
+    console.error('Error detecting front-month contract:', error);
     return null;
   }
+}
+
+// Helper to get 3rd Friday of a given month/year
+function getThirdFriday(m: number, y: number): Date {
+  const firstDay = new Date(y, m - 1, 1);
+  const firstDayOfWeek = firstDay.getDay();
+  const daysUntilFriday = (5 - firstDayOfWeek + 7) % 7;
+  const thirdFriday = new Date(firstDay);
+  thirdFriday.setDate(1 + daysUntilFriday + 14);
+  return thirdFriday;
 }
 
 // Fallback: Calculate next quarterly expiration (3rd Friday of Mar/Jun/Sep/Dec)
