@@ -149,27 +149,21 @@ export function convert(
     return value / params.spxSpyRatio;
   }
 
-  // ETF to Futures - chain through index: QQQ→NDX (fixed ratio) → NQ (cost of carry)
+  // ETF to Futures - chain: QQQ→NDX (fixed ratio) → NQ (live market ratio)
   if (fromTicker === 'QQQ' && toTicker === 'NQ') {
     const ndxValue = value * params.ndxQqqRatio;
-    return calculateCarryPremium(ndxValue, params.riskFreeRate, params.ndxDivYield, params.daysToExp);
+    return ndxValue * (marketData.nq / marketData.ndx);
   }
   if (fromTicker === 'NQ' && toTicker === 'QQQ') {
-    const t = params.daysToExp / 365.0;
-    const r = params.riskFreeRate / 100.0;
-    const d = params.ndxDivYield / 100.0;
-    const ndxValue = value / Math.exp((r - d) * t);
+    const ndxValue = value * (marketData.ndx / marketData.nq);
     return ndxValue / params.ndxQqqRatio;
   }
   if (fromTicker === 'SPY' && toTicker === 'ES') {
     const spxValue = value * params.spxSpyRatio;
-    return calculateCarryPremium(spxValue, params.riskFreeRate, params.spxDivYield, params.daysToExp);
+    return spxValue * (marketData.es / marketData.spx);
   }
   if (fromTicker === 'ES' && toTicker === 'SPY') {
-    const t = params.daysToExp / 365.0;
-    const r = params.riskFreeRate / 100.0;
-    const d = params.spxDivYield / 100.0;
-    const spxValue = value / Math.exp((r - d) * t);
+    const spxValue = value * (marketData.spx / marketData.es);
     return spxValue / params.spxSpyRatio;
   }
 
