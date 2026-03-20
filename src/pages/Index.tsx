@@ -105,6 +105,10 @@ const Index = () => {
                 <MarketTab type="gold" marketData={marketData} params={params} premium={gcPremium} variant="gold" />
               </TabsContent>
 
+              <TabsContent value="options">
+                <OptionsTab />
+              </TabsContent>
+
               <TabsContent value="prediction">
                 <PredictionTab />
               </TabsContent>
