@@ -5,6 +5,7 @@ import { MarketTab } from "@/components/MarketTab";
 import { CheatSheetTab } from "@/components/CheatSheetTab";
 import { AlertsTab } from "@/components/AlertsTab";
 import { PredictionTab } from "@/components/PredictionTab";
+import { OptionsTab } from "@/components/OptionsTab";
 import { useMarketData } from "@/hooks/useMarketData";
 import { usePriceAlerts } from "@/hooks/usePriceAlerts";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
