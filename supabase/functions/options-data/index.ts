@@ -79,9 +79,54 @@ function getYahooSymbol(ticker: string): string {
   return map[ticker.toUpperCase()] || ticker.toUpperCase();
 }
 
+// Get Yahoo Finance crumb + cookies for authenticated requests
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string }> {
+  // Step 1: Get cookies from Yahoo Finance
+  const initRes = await fetch('https://fc.yahoo.com', {
+    redirect: 'manual',
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+  });
+  const cookies = initRes.headers.get('set-cookie') || '';
+
+  // Step 2: Get crumb using the cookies
+  const crumbRes = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Cookie': cookies,
+    },
+  });
+  const crumb = await crumbRes.text();
+  return { crumb, cookie: cookies };
+}
+
 // Fetch options chain from Yahoo Finance
 async function fetchOptionsChain(ticker: string, expDate?: string): Promise<any> {
   const yahooSymbol = getYahooSymbol(ticker);
+
+  // Try with crumb authentication
+  try {
+    const { crumb, cookie } = await getYahooCrumb();
+    let url = `https://query2.finance.yahoo.com/v7/finance/options/${yahooSymbol}?crumb=${encodeURIComponent(crumb)}`;
+    if (expDate) {
+      url += `&date=${expDate}`;
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Cookie': cookie,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data?.optionChain?.result?.[0] || null;
+    }
+  } catch (e) {
+    console.log('Crumb auth failed, trying fallback...', e);
+  }
+
+  // Fallback: try query1 without auth
   let url = `https://query1.finance.yahoo.com/v7/finance/options/${yahooSymbol}`;
   if (expDate) {
     url += `?date=${expDate}`;
@@ -89,7 +134,9 @@ async function fetchOptionsChain(ticker: string, expDate?: string): Promise<any>
 
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
     },
   });
 
