@@ -5,6 +5,7 @@ import { MarketTab } from "@/components/MarketTab";
 import { CheatSheetTab } from "@/components/CheatSheetTab";
 import { AlertsTab } from "@/components/AlertsTab";
 import { PredictionTab } from "@/components/PredictionTab";
+import { OptionsTab } from "@/components/OptionsTab";
 import { useMarketData } from "@/hooks/useMarketData";
 import { usePriceAlerts } from "@/hooks/usePriceAlerts";
 import { calculatePremiumInfo } from "@/lib/futuresConverter";
@@ -71,24 +72,27 @@ const Index = () => {
           {/* Left column - Tabs */}
           <div>
             <Tabs defaultValue="nasdaq" className="w-full">
-              <TabsList className="mb-6 grid w-full grid-cols-6 bg-secondary/30">
-                <TabsTrigger value="nasdaq" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
-                  📈 NASDAQ
+              <TabsList className="mb-6 grid w-full grid-cols-7 bg-secondary/30">
+                <TabsTrigger value="nasdaq" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+                  NASDAQ
                 </TabsTrigger>
-                <TabsTrigger value="sp500" className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white">
-                  📊 S&P 500
+                <TabsTrigger value="sp500" className="data-[state=active]:bg-gradient-sp500 data-[state=active]:text-white text-xs sm:text-sm">
+                  S&P 500
                 </TabsTrigger>
-                <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground">
-                  🥇 Gold
+                <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-gold data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+                  Gold
                 </TabsTrigger>
-                <TabsTrigger value="prediction" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
-                  🤖 Bot
+                <TabsTrigger value="options" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+                  Options
                 </TabsTrigger>
-                <TabsTrigger value="alerts" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
-                  🔔 Alerts {alerts.filter(a => !a.triggered).length > 0 && `(${alerts.filter(a => !a.triggered).length})`}
+                <TabsTrigger value="prediction" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+                  Bot
                 </TabsTrigger>
-                <TabsTrigger value="cheatsheet" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground">
-                  📋 Cheat Sheet
+                <TabsTrigger value="alerts" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+                  Alerts {alerts.filter(a => !a.triggered).length > 0 && `(${alerts.filter(a => !a.triggered).length})`}
+                </TabsTrigger>
+                <TabsTrigger value="cheatsheet" className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+                  Cheat Sheet
                 </TabsTrigger>
               </TabsList>
 
@@ -102,6 +106,10 @@ const Index = () => {
 
               <TabsContent value="gold">
                 <MarketTab type="gold" marketData={marketData} params={params} premium={gcPremium} variant="gold" />
+              </TabsContent>
+
+              <TabsContent value="options">
+                <OptionsTab />
               </TabsContent>
 
               <TabsContent value="prediction">
