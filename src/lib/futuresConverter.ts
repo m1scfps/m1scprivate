@@ -149,22 +149,18 @@ export function convert(
     return value / params.spxSpyRatio;
   }
 
-  // ETF to Futures - chain: QQQ→NDX (fixed ratio) → NQ (live market ratio)
+  // ETF to Futures - use direct live market ratio for accuracy
   if (fromTicker === 'QQQ' && toTicker === 'NQ') {
-    const ndxValue = value * params.ndxQqqRatio;
-    return ndxValue * (marketData.nq / marketData.ndx);
+    return value * (marketData.nq / marketData.qqq);
   }
   if (fromTicker === 'NQ' && toTicker === 'QQQ') {
-    const ndxValue = value * (marketData.ndx / marketData.nq);
-    return ndxValue / params.ndxQqqRatio;
+    return value * (marketData.qqq / marketData.nq);
   }
   if (fromTicker === 'SPY' && toTicker === 'ES') {
-    const spxValue = value * params.spxSpyRatio;
-    return spxValue * (marketData.es / marketData.spx);
+    return value * (marketData.es / marketData.spy);
   }
   if (fromTicker === 'ES' && toTicker === 'SPY') {
-    const spxValue = value * (marketData.spx / marketData.es);
-    return spxValue / params.spxSpyRatio;
+    return value * (marketData.spy / marketData.es);
   }
 
   // Index to Futures - use live market ratio (actual premium, not theoretical)
